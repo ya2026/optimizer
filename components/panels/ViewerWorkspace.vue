@@ -5,7 +5,7 @@ import ThreeViewport from '~/components/viewer/ThreeViewport.vue'
 const previewModules = [
   {
     title: 'Model Preview Canvas',
-    description: 'Scene, camera, renderer, controls, and lighting are initialized'
+    description: 'STEP geometry is parsed, processed, and rendered into the Three.js scene'
   },
   {
     title: 'View Controls',
@@ -13,7 +13,7 @@ const previewModules = [
   },
   {
     title: 'Face Selection',
-    description: 'Reserve face picking and highlight container'
+    description: 'Original STEP face ranges are preserved for later manual face selection'
   }
 ]
 </script>
@@ -22,7 +22,7 @@ const previewModules = [
   <section class="viewer-panel">
     <PanelSection
       title="3D Workspace"
-      description="The central area now includes the basic Three.js runtime and keeps placeholders for the next model workflow steps."
+      description="The central area now runs the complete STEP import, face-preserving triangulation mapping, cleanup, normalization, and rendering pipeline."
     >
       <ThreeViewport />
 
