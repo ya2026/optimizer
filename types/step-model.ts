@@ -1,4 +1,4 @@
-import type { BufferGeometry, Group, Mesh } from 'three'
+import type { BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
 
 export interface OcctFaceRange {
   first: number
@@ -36,23 +36,41 @@ export interface OcctStepReadResult {
 }
 
 export interface StepFaceMapping {
+  id: string
   faceIndex: number
   triangleStart: number
   triangleEnd: number
   indexStart: number
   indexCount: number
   color: [number, number, number] | null
+  materialIndex: number
 }
 
 export interface ProcessedStepMesh {
+  id: string
   name: string
   geometry: BufferGeometry
   mesh: Mesh
+  materials: MeshStandardMaterial[]
   faceMappings: StepFaceMapping[]
+  isSeparatedFace: boolean
 }
 
 export interface ProcessedStepModel {
   group: Group
   meshes: ProcessedStepMesh[]
   sourceName: string
+}
+
+export interface MorandiColorOption {
+  id: string
+  name: string
+  hex: string
+}
+
+export interface SelectedStepFace {
+  meshId: string
+  faceId: string
+  meshName: string
+  isSeparatedFace: boolean
 }

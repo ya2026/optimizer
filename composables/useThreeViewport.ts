@@ -2,22 +2,30 @@ import { watch, type Ref } from 'vue'
 import {
   AmbientLight,
   AxesHelper,
-  Box3,
   Color,
   DirectionalLight,
   GridHelper,
   Group,
+  MeshStandardMaterial,
   PerspectiveCamera,
+  Raycaster,
   Scene,
   SRGBColorSpace,
-  Vector3,
+  Vector2,
   WebGLRenderer
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
+import { useMorandiPalette } from '~/composables/useMorandiPalette'
 import { useStepImportState } from '~/composables/useStepImportState'
 import { useStepImporter } from '~/composables/useStepImporter'
 import { useStepModelProcessor } from '~/composables/useStepModelProcessor'
-import type { ProcessedStepModel } from '~/types/step-model'
+import type {
+  MorandiColorOption,
+  ProcessedStepMesh,
+  ProcessedStepModel,
+  SelectedStepFace
+} from '~/types/step-model'
 
 interface ThreeViewportState {
   scene: Scene | null
@@ -28,17 +36,34 @@ interface ThreeViewportState {
   currentModel: ProcessedStepModel | null
   currentHelperGroup: Group | null
   stopWatchingImportState: (() => void) | null
+  stopWatchingFaceState: (() => void) | null
+  raycaster: Raycaster
+  pointer: Vector2
 }
 
 /**
- * Manage the Three.js scene lifecycle and connect imported STEP files to the viewport.
+ * Own the Three.js scene lifecycle and connect it to face picking, coloring, and separation.
  */
 export const useThreeViewport = (
   containerRef: Ref<HTMLDivElement | null>
 ) => {
   const { activeFile, updateFileStatus } = useStepImportState()
+  const {
+    state: faceInteractionState,
+    setSelectedFace
+  } = useFaceInteractionState()
+  const { morandiColors } = useMorandiPalette()
   const { importStepFile } = useStepImporter()
-  const { fitCameraToModel } = useStepModelProcessor()
+  const {
+    fitCameraToModel,
+    findFaceMapping,
+    highlightFace,
+    clearTemporaryMaterials,
+    resetMeshMaterials,
+    applyColorToFace,
+    autoColorModel,
+    separateFace
+  } = useStepModelProcessor()
 
   const state: ThreeViewportState = {
     scene: null,
@@ -48,7 +73,10 @@ export const useThreeViewport = (
     animationFrameId: null,
     currentModel: null,
     currentHelperGroup: null,
-    stopWatchingImportState: null
+    stopWatchingImportState: null,
+    stopWatchingFaceState: null,
+    raycaster: new Raycaster(),
+    pointer: new Vector2()
   }
 
   const resizeViewport = (): void => {
@@ -85,11 +113,8 @@ export const useThreeViewport = (
     const helperGroup = new Group()
     helperGroup.name = 'ViewportHelpers'
 
-    const gridHelper = new GridHelper(1.2, 12, 0x8aa0a5, 0xc9d4d7)
-    helperGroup.add(gridHelper)
-
-    const axesHelper = new AxesHelper(0.6)
-    helperGroup.add(axesHelper)
+    helperGroup.add(new GridHelper(1.2, 12, 0x8aa0a5, 0xc9d4d7))
+    helperGroup.add(new AxesHelper(0.6))
 
     return helperGroup
   }
@@ -125,7 +150,6 @@ export const useThreeViewport = (
     state.camera.near = 0.01
     state.camera.far = Math.max(distance * 20, 100)
     state.camera.updateProjectionMatrix()
-
     state.controls.minDistance = Math.max(radius * 0.2, 0.1)
     state.controls.maxDistance = Math.max(radius * 12, 25)
     state.controls.update()
@@ -138,18 +162,27 @@ export const useThreeViewport = (
 
     state.scene.remove(state.currentModel.group)
 
-    state.currentModel.meshes.forEach(({ geometry, mesh }) => {
-      geometry.dispose()
+    state.currentModel.meshes.forEach((processedMesh) => {
+      const { geometry, materials, mesh } = processedMesh
 
-      const material = mesh.material
-      if (Array.isArray(material)) {
-        material.forEach((entry) => entry.dispose())
-      } else {
-        material.dispose()
+      clearTemporaryMaterials(processedMesh)
+      geometry.dispose()
+      materials.forEach((material) => material.dispose())
+
+      const currentMaterial = mesh.material
+      if (Array.isArray(currentMaterial)) {
+        currentMaterial.forEach((material) => {
+          const typedMaterial = material as MeshStandardMaterial
+
+          if (!materials.includes(typedMaterial)) {
+            typedMaterial.dispose()
+          }
+        })
       }
     })
 
     state.currentModel = null
+    setSelectedFace(null)
   }
 
   const renderImportedFile = async (): Promise<void> => {
@@ -170,9 +203,145 @@ export const useThreeViewport = (
 
       frameModel(processedModel)
       updateFileStatus(fileItem.id, 'success')
+      setSelectedFace(null)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'STEP import failed.'
       updateFileStatus(fileItem.id, 'error', message)
+    }
+  }
+
+  const findProcessedMeshByObject = (meshId: string): ProcessedStepMesh | null => {
+    return state.currentModel?.meshes.find((meshItem) => meshItem.id === meshId) ?? null
+  }
+
+  const findFaceMappingByTriangleOffset = (
+    processedMesh: ProcessedStepMesh,
+    triangleOffset: number
+  ) => {
+    return processedMesh.faceMappings.find((mapping) => (
+      triangleOffset >= mapping.triangleStart &&
+      triangleOffset <= mapping.triangleEnd
+    )) ?? null
+  }
+
+  const clearHighlightAcrossModel = (): void => {
+    state.currentModel?.meshes.forEach((processedMesh) => {
+      clearTemporaryMaterials(processedMesh)
+    })
+  }
+
+  const updateHighlightForSelection = (): void => {
+    clearHighlightAcrossModel()
+
+    const selectedFace = faceInteractionState.value.selectedFace
+    if (!selectedFace || !state.currentModel) {
+      return
+    }
+
+    const processedMesh = state.currentModel.meshes.find((meshItem) => meshItem.id === selectedFace.meshId)
+    if (!processedMesh) {
+      return
+    }
+
+    highlightFace(processedMesh, selectedFace.faceId)
+  }
+
+  const getSelectedColor = (): MorandiColorOption | null => {
+    return morandiColors.find((color) => color.id === faceInteractionState.value.selectedColorId) ?? null
+  }
+
+  const applySelectedColorToSelection = (): void => {
+    const selectedFace = faceInteractionState.value.selectedFace
+    const selectedColor = getSelectedColor()
+
+    if (!selectedFace || !selectedColor || !state.currentModel) {
+      return
+    }
+
+    const processedMesh = state.currentModel.meshes.find((meshItem) => meshItem.id === selectedFace.meshId)
+    if (!processedMesh) {
+      return
+    }
+
+    applyColorToFace(processedMesh, selectedFace.faceId, selectedColor)
+    highlightFace(processedMesh, selectedFace.faceId)
+  }
+
+  const separateSelectedFace = (): void => {
+    const selectedFace = faceInteractionState.value.selectedFace
+
+    if (!selectedFace || !state.currentModel) {
+      return
+    }
+
+    const separatedMesh = separateFace(state.currentModel, selectedFace)
+
+    if (!separatedMesh) {
+      return
+    }
+
+    setSelectedFace({
+      meshId: separatedMesh.id,
+      faceId: separatedMesh.faceMappings[0].id,
+      meshName: separatedMesh.name,
+      isSeparatedFace: true
+    })
+
+    updateHighlightForSelection()
+  }
+
+  const handleCanvasClick = (event: MouseEvent): void => {
+    const container = containerRef.value
+
+    if (!container || !state.camera || !state.currentModel) {
+      return
+    }
+
+    const rect = container.getBoundingClientRect()
+    state.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    state.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+    state.raycaster.setFromCamera(state.pointer, state.camera)
+
+    const targetMeshes = state.currentModel.meshes.map((meshItem) => meshItem.mesh)
+    const intersections = state.raycaster.intersectObjects(targetMeshes, false)
+    const firstIntersection = intersections[0]
+
+    if (!firstIntersection || firstIntersection.faceIndex == null) {
+      setSelectedFace(null)
+      clearHighlightAcrossModel()
+      return
+    }
+
+    const meshId = firstIntersection.object.userData.meshId as string | undefined
+    if (!meshId) {
+      return
+    }
+
+    const processedMesh = findProcessedMeshByObject(meshId)
+    if (!processedMesh) {
+      return
+    }
+
+    const triangleOffset = firstIntersection.faceIndex
+    const faceMapping = findFaceMappingByTriangleOffset(processedMesh, triangleOffset)
+
+    if (!faceMapping) {
+      return
+    }
+
+    const nextSelection: SelectedStepFace = {
+      meshId: processedMesh.id,
+      faceId: faceMapping.id,
+      meshName: processedMesh.name,
+      isSeparatedFace: processedMesh.isSeparatedFace
+    }
+
+    setSelectedFace(nextSelection)
+    updateHighlightForSelection()
+
+    if (faceInteractionState.value.manualColoringEnabled) {
+      applySelectedColorToSelection()
     }
   }
 
@@ -222,6 +391,7 @@ export const useThreeViewport = (
     startRenderLoop()
 
     window.addEventListener('resize', resizeViewport)
+    renderer.domElement.addEventListener('click', handleCanvasClick)
 
     state.stopWatchingImportState = watch(
       () => activeFile.value?.id,
@@ -230,12 +400,45 @@ export const useThreeViewport = (
       },
       { immediate: true }
     )
+
+    state.stopWatchingFaceState = watch(
+      [
+        () => faceInteractionState.value.selectedColorId,
+        () => faceInteractionState.value.autoColorRequestToken,
+        () => faceInteractionState.value.separationRequestToken,
+        () => faceInteractionState.value.selectedFace?.faceId,
+        () => faceInteractionState.value.manualColoringEnabled
+      ],
+      ([, autoColorToken, separationToken], previousValues) => {
+        if (!state.currentModel) {
+          return
+        }
+
+        const previousAutoColorToken = previousValues?.[1] ?? null
+        const previousSeparationToken = previousValues?.[2] ?? null
+
+        if (autoColorToken !== previousAutoColorToken) {
+          autoColorModel(state.currentModel)
+          updateHighlightForSelection()
+        }
+
+        if (separationToken !== previousSeparationToken) {
+          separateSelectedFace()
+        }
+      }
+    )
   }
 
   const disposeViewport = (): void => {
     window.removeEventListener('resize', resizeViewport)
     state.stopWatchingImportState?.()
+    state.stopWatchingFaceState?.()
     state.stopWatchingImportState = null
+    state.stopWatchingFaceState = null
+
+    if (state.renderer) {
+      state.renderer.domElement.removeEventListener('click', handleCanvasClick)
+    }
 
     if (state.animationFrameId !== null) {
       window.cancelAnimationFrame(state.animationFrameId)
