@@ -42,6 +42,10 @@ interface FaceTriangleRecord {
   indices: [number, number, number]
 }
 
+interface HighlightFaceOptions {
+  preserveMaterialColor?: boolean
+}
+
 /**
  * Convert STEP mesh data into editable Three.js meshes while preserving original face topology ranges.
  */
@@ -371,6 +375,19 @@ export const useStepModelProcessor = () => {
     })
   }
 
+  const createColorPreservingHighlightMaterial = (
+    baseMaterial: MeshStandardMaterial
+  ): MeshStandardMaterial => {
+    return new MeshStandardMaterial({
+      color: baseMaterial.color.clone(),
+      emissive: baseMaterial.color.clone(),
+      emissiveIntensity: 0.32,
+      roughness: Math.max(baseMaterial.roughness - 0.12, 0.2),
+      metalness: baseMaterial.metalness,
+      side: FrontSide
+    })
+  }
+
   const createMorandiMaterial = (colorOption: MorandiColorOption): MeshStandardMaterial => {
     return new MeshStandardMaterial({
       color: new Color(colorOption.hex),
@@ -558,7 +575,8 @@ export const useStepModelProcessor = () => {
 
   const highlightFace = (
     processedMesh: ProcessedStepMesh,
-    faceId: string
+    faceId: string,
+    options: HighlightFaceOptions = {}
   ): void => {
     clearTemporaryMaterials(processedMesh)
 
@@ -569,7 +587,9 @@ export const useStepModelProcessor = () => {
 
     const highlightMaterials = processedMesh.materials.map((material) => material.clone())
     highlightMaterials[mapping.materialIndex]?.dispose()
-    highlightMaterials[mapping.materialIndex] = createHighlightMaterial()
+    highlightMaterials[mapping.materialIndex] = options.preserveMaterialColor
+      ? createColorPreservingHighlightMaterial(processedMesh.materials[mapping.materialIndex])
+      : createHighlightMaterial()
     processedMesh.mesh.material = highlightMaterials
   }
 

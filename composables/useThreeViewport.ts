@@ -205,6 +205,7 @@ export const useThreeViewport = (
       state.currentModel = processedModel
       setCurrentModel(processedModel)
 
+      autoColorModel(processedModel)
       frameModel(processedModel)
       updateFileStatus(fileItem.id, 'success')
       setSelectedFace(null)
@@ -250,6 +251,27 @@ export const useThreeViewport = (
     highlightFace(processedMesh, selectedFace.faceId)
   }
 
+  /**
+   * Refresh the selected face presentation after selection, mode changes, or color changes.
+   */
+  const syncSelectionPresentation = (): void => {
+    if (!state.currentModel) {
+      return
+    }
+
+    if (!faceInteractionState.value.selectedFace) {
+      clearHighlightAcrossModel()
+      return
+    }
+
+    if (faceInteractionState.value.manualColoringEnabled) {
+      applySelectedColorToSelection()
+      return
+    }
+
+    updateHighlightForSelection()
+  }
+
   const getSelectedColor = (): MorandiColorOption | null => {
     return morandiColors.find((color) => color.id === faceInteractionState.value.selectedColorId) ?? null
   }
@@ -268,7 +290,9 @@ export const useThreeViewport = (
     }
 
     applyColorToFace(processedMesh, selectedFace.faceId, selectedColor)
-    highlightFace(processedMesh, selectedFace.faceId)
+    highlightFace(processedMesh, selectedFace.faceId, {
+      preserveMaterialColor: true
+    })
   }
 
   const separateSelectedFace = (): void => {
@@ -290,8 +314,7 @@ export const useThreeViewport = (
       meshName: separatedMesh.name,
       isSeparatedFace: true
     })
-
-    updateHighlightForSelection()
+    syncSelectionPresentation()
   }
 
   const handleCanvasClick = (event: MouseEvent): void => {
@@ -342,11 +365,7 @@ export const useThreeViewport = (
     }
 
     setSelectedFace(nextSelection)
-    updateHighlightForSelection()
-
-    if (faceInteractionState.value.manualColoringEnabled) {
-      applySelectedColorToSelection()
-    }
+    syncSelectionPresentation()
   }
 
   const initializeViewport = (): void => {
@@ -413,21 +432,36 @@ export const useThreeViewport = (
         () => faceInteractionState.value.selectedFace?.faceId,
         () => faceInteractionState.value.manualColoringEnabled
       ],
-      ([, autoColorToken, separationToken], previousValues) => {
+      (
+        [selectedColorId, autoColorToken, separationToken, selectedFaceId, manualColoringEnabled],
+        previousValues
+      ) => {
         if (!state.currentModel) {
           return
         }
 
+        const previousSelectedColorId = previousValues?.[0] ?? null
         const previousAutoColorToken = previousValues?.[1] ?? null
         const previousSeparationToken = previousValues?.[2] ?? null
+        const previousSelectedFaceId = previousValues?.[3] ?? null
+        const previousManualColoringEnabled = previousValues?.[4] ?? null
 
         if (autoColorToken !== previousAutoColorToken) {
           autoColorModel(state.currentModel)
-          updateHighlightForSelection()
+          syncSelectionPresentation()
         }
 
         if (separationToken !== previousSeparationToken) {
           separateSelectedFace()
+          return
+        }
+
+        const selectionChanged = selectedFaceId !== previousSelectedFaceId
+        const modeChanged = manualColoringEnabled !== previousManualColoringEnabled
+        const colorChanged = selectedColorId !== previousSelectedColorId
+
+        if (selectionChanged || modeChanged || (colorChanged && manualColoringEnabled)) {
+          syncSelectionPresentation()
         }
       }
     )

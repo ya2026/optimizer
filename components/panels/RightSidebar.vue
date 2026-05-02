@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import PanelSection from '~/components/panels/PanelSection.vue'
 import { useMorandiPalette } from '~/composables/useMorandiPalette'
 import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
@@ -15,27 +16,41 @@ const {
 } = useFaceInteractionState()
 const {
   exportCurrentModelAsGlb,
+  exportCurrentModelAsFbx,
   hasExportableModel
 } = useModelExport()
+
+const manualColoringEnabled = computed({
+  get: () => state.value.manualColoringEnabled,
+  set: (enabled: boolean) => {
+    setManualColoringEnabled(enabled)
+  }
+})
+
+const manualColoringStatusText = computed(() => {
+  return manualColoringEnabled.value ? '已开启' : '已关闭'
+})
 </script>
 
 <template>
   <aside class="sidebar-panel">
     <PanelSection
       title="手动着色"
-      description="选择一个莫兰迪颜色后，点击视口中的 STEP 面即可着色，当前选中面会保持红色高亮。"
+      description="提供 8 个按赤橙黄绿青蓝靛紫排列的低饱和色盘。导入后模型会自动配色，开启手动模式后可继续点击面替换颜色。"
     >
       <div class="toggle-card">
         <div>
           <p class="toggle-card__label">手动着色模式</p>
-          <p class="toggle-card__hint">开启后可在保留选面与高亮能力的同时，点击面直接着色</p>
+          <p class="toggle-card__status">
+            {{ manualColoringStatusText }}
+          </p>
+          <p class="toggle-card__hint">开启后点击模型面会直接改色并保留同色高亮；关闭后点击仅用于红色高亮选面</p>
         </div>
 
         <label class="switch">
           <input
-            :checked="state.manualColoringEnabled"
+            v-model="manualColoringEnabled"
             type="checkbox"
-            @change="setManualColoringEnabled(($event.target as HTMLInputElement).checked)"
           >
           <span class="switch__slider" />
         </label>
@@ -81,7 +96,7 @@ const {
 
     <PanelSection
       title="导出"
-      description="直接下载完整处理后的模型，并保留几何、材质、莫兰迪颜色、分组、居中、1 米尺度和法线结果。"
+      description="直接下载完整处理后的模型，并保留几何、材质、颜色、分组、居中、1 米尺度和法线结果。"
     >
       <div class="export-actions">
         <button
@@ -91,6 +106,15 @@ const {
           @click="exportCurrentModelAsGlb"
         >
           导出 GLB
+        </button>
+
+        <button
+          type="button"
+          class="primary-button primary-button--secondary"
+          :disabled="!hasExportableModel"
+          @click="exportCurrentModelAsFbx"
+        >
+          导出 FBX
         </button>
       </div>
     </PanelSection>

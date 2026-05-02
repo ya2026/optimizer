@@ -1,15 +1,20 @@
 import type { Object3D } from 'three'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+import { useFbxExport } from '~/composables/useFbxExport'
 import { useProcessedModelState } from '~/composables/useProcessedModelState'
+import { useStepModelProcessor } from '~/composables/useStepModelProcessor'
+import type { ProcessedStepMesh, ProcessedStepModel } from '~/types/step-model'
 
 /**
- * Export the full processed scene model as a binary GLB file in the browser.
+ * Export the full processed scene model in browser-friendly 3D file formats.
  */
 export const useModelExport = () => {
   const { currentModel } = useProcessedModelState()
+  const { clearTemporaryMaterials } = useStepModelProcessor()
+  const { exportObjectAsFbx } = useFbxExport()
 
   const exportCurrentModelAsGlb = async (): Promise<void> => {
-    const model = currentModel.value
+    const model = prepareModelForExport()
 
     if (!model) {
       return
@@ -41,24 +46,58 @@ export const useModelExport = () => {
 
     const fileName = `${sanitizeFileName(model.sourceName)}.glb`
     const blob = new Blob([glbBuffer], { type: 'model/gltf-binary' })
-    const objectUrl = URL.createObjectURL(blob)
-    const downloadLink = document.createElement('a')
+    triggerBrowserDownload(blob, fileName)
+  }
 
-    downloadLink.href = objectUrl
-    downloadLink.download = fileName
-    document.body.appendChild(downloadLink)
-    downloadLink.click()
-    document.body.removeChild(downloadLink)
+  const exportCurrentModelAsFbx = async (): Promise<void> => {
+    const model = prepareModelForExport()
 
-    window.setTimeout(() => {
-      URL.revokeObjectURL(objectUrl)
-    }, 0)
+    if (!model) {
+      return
+    }
+
+    const fileName = `${sanitizeFileName(model.sourceName)}.fbx`
+    const fbxBlob = exportObjectAsFbx(model.group, model.sourceName)
+
+    triggerBrowserDownload(fbxBlob, fileName)
+  }
+
+  const prepareModelForExport = () => {
+    const model = currentModel.value as ProcessedStepModel | null
+
+    if (!model) {
+      return null
+    }
+
+    // Highlight materials are temporary view-state overlays and should not leak into exported files.
+    model.meshes.forEach((processedMesh) => {
+      clearTemporaryMaterials(processedMesh as ProcessedStepMesh)
+    })
+    model.group.updateMatrixWorld(true)
+
+    return model
   }
 
   return {
     exportCurrentModelAsGlb,
+    exportCurrentModelAsFbx,
     hasExportableModel: computed(() => currentModel.value !== null)
   }
+}
+
+const triggerBrowserDownload = (blob: Blob, fileName: string): void => {
+  const objectUrl = URL.createObjectURL(blob)
+  const downloadLink = document.createElement('a')
+
+  downloadLink.href = objectUrl
+  downloadLink.download = fileName
+  document.body.appendChild(downloadLink)
+  downloadLink.click()
+  document.body.removeChild(downloadLink)
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl)
+  }, 0)
 }
 
 const sanitizeFileName = (fileName: string): string => {
