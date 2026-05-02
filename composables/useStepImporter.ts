@@ -22,7 +22,7 @@ export const useStepImporter = () => {
     const result = occt.ReadStepFile(fileBuffer, { ...IMPORT_PARAMS }) as OcctStepReadResult
 
     if (!result.success) {
-      throw new Error(`Failed to parse STEP file: ${file.name}`)
+      throw new Error(`STEP 文件解析失败：${file.name}`)
     }
 
     return processStepResult(result, file.name)

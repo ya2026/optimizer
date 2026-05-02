@@ -5,7 +5,10 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   app: {
     head: {
-      title: 'STEP 3D Web Tool',
+      htmlAttrs: {
+        lang: 'zh-CN'
+      },
+      title: 'STEP 三维处理工具',
       meta: [
         {
           name: 'viewport',
@@ -13,7 +16,7 @@ export default defineNuxtConfig({
         },
         {
           name: 'description',
-          content: 'Front-end STEP 3D model coloring and export workspace built with Nuxt 3, TypeScript, and Three.js.'
+          content: '基于 Nuxt 3、TypeScript 与 Three.js 构建的纯前端 STEP 三维模型处理、着色与导出工作台。'
         }
       ]
     }

@@ -4,16 +4,16 @@ import ThreeViewport from '~/components/viewer/ThreeViewport.vue'
 
 const previewModules = [
   {
-    title: 'Model Preview Canvas',
-    description: 'STEP geometry is parsed, processed, and rendered into the Three.js scene'
+    title: '模型预览画布',
+    description: 'STEP 几何体会在这里完成解析、处理并渲染到 Three.js 场景中'
   },
   {
-    title: 'View Controls',
-    description: 'OrbitControls enables rotate, zoom, and pan interactions'
+    title: '视图控制',
+    description: '通过 OrbitControls 支持旋转、缩放与平移操作'
   },
   {
-    title: 'Face Selection',
-    description: 'Original STEP face ranges are preserved for later manual face selection'
+    title: '面选择',
+    description: '保留原始 STEP 面映射关系，供后续手动选面与着色使用'
   }
 ]
 </script>
@@ -21,8 +21,8 @@ const previewModules = [
 <template>
   <section class="viewer-panel">
     <PanelSection
-      title="3D Workspace"
-      description="The central area now runs the complete STEP import, face-preserving triangulation mapping, cleanup, normalization, and rendering pipeline."
+      title="三维工作区"
+      description="中间区域承载完整的 STEP 导入、保面三角化映射、清理、归一化与渲染流程。"
     >
       <ThreeViewport />
 

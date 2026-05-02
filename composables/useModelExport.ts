@@ -26,10 +26,10 @@ export const useModelExport = () => {
             return
           }
 
-          reject(new Error('GLB export did not return a binary buffer.'))
+          reject(new Error('GLB 导出结果不是二进制缓冲区。'))
         },
         (error) => {
-          reject(error instanceof Error ? error : new Error('GLB export failed.'))
+          reject(error instanceof Error ? error : new Error('GLB 导出失败。'))
         },
         {
           binary: true,

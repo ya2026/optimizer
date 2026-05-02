@@ -27,16 +27,16 @@ onBeforeUnmount(() => {
   >
     <div class="viewer-canvas__badge">
       <span class="viewer-canvas__badge-dot" />
-      {{ activeFile ? `Viewing: ${activeFile.name}` : 'Three.js Runtime Ready' }}
+      {{ activeFile ? `当前查看：${activeFile.name}` : 'Three.js 运行环境已就绪' }}
     </div>
 
     <div
       v-if="!activeFile"
       class="viewer-canvas__empty"
     >
-      <p class="viewer-canvas__empty-title">Import a STEP file to start</p>
+      <p class="viewer-canvas__empty-title">导入 STEP 文件后开始预览</p>
       <p class="viewer-canvas__empty-hint">
-        The full browser-side STEP parsing, face mapping, cleanup, normalization, and rendering pipeline is ready.
+        当前已完成浏览器端 STEP 解析、面映射、几何清理、归一化与渲染管线初始化。
       </p>
     </div>
   </div>
