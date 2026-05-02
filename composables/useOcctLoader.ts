@@ -5,6 +5,46 @@ interface OcctModule {
 }
 
 let occtModulePromise: Promise<OcctModule> | null = null
+let occtScriptPromise: Promise<void> | null = null
+
+const OCCT_SCRIPT_ID = 'occt-import-js-runtime'
+
+const loadOcctScript = async (): Promise<void> => {
+  if (!import.meta.client) {
+    throw new Error('STEP parsing is only available in the browser.')
+  }
+
+  if (window.occtimportjs) {
+    return
+  }
+
+  if (!occtScriptPromise) {
+    occtScriptPromise = new Promise<void>((resolve, reject) => {
+      const existingScript = document.getElementById(OCCT_SCRIPT_ID) as HTMLScriptElement | null
+
+      if (existingScript) {
+        existingScript.addEventListener('load', () => resolve(), { once: true })
+        existingScript.addEventListener(
+          'error',
+          () => reject(new Error('Failed to load occt-import-js runtime script.')),
+          { once: true }
+        )
+        return
+      }
+
+      const scriptElement = document.createElement('script')
+      scriptElement.id = OCCT_SCRIPT_ID
+      scriptElement.src = '/occt-import-js.js'
+      scriptElement.async = true
+      scriptElement.onload = () => resolve()
+      scriptElement.onerror = () => reject(new Error('Failed to load occt-import-js runtime script.'))
+
+      document.head.appendChild(scriptElement)
+    })
+  }
+
+  await occtScriptPromise
+}
 
 /**
  * Lazily initialize the OpenCascade WASM module in the browser.
@@ -16,10 +56,15 @@ export const useOcctLoader = () => {
     }
 
     if (!occtModulePromise) {
-      const occtImportModule = await import('~/public/occt-import-js.js')
-      const occtImportFactory = occtImportModule.default as (config: {
+      await loadOcctScript()
+
+      const occtImportFactory = window.occtimportjs as ((config: {
         locateFile: (fileName: string) => string
-      }) => Promise<OcctModule>
+      }) => Promise<OcctModule>) | undefined
+
+      if (!occtImportFactory) {
+        throw new Error('occt-import-js runtime is loaded, but the factory function is unavailable.')
+      }
 
       occtModulePromise = occtImportFactory({
         locateFile: (fileName: string) => {
