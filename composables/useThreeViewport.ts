@@ -1,16 +1,32 @@
-import type { Ref } from 'vue'
+import { watch, type Ref } from 'vue'
 import {
   AmbientLight,
   AxesHelper,
   Color,
   DirectionalLight,
   GridHelper,
+  Group,
+  MeshStandardMaterial,
   PerspectiveCamera,
+  Raycaster,
   Scene,
   SRGBColorSpace,
+  Vector2,
   WebGLRenderer
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
+import { useMorandiPalette } from '~/composables/useMorandiPalette'
+import { useProcessedModelState } from '~/composables/useProcessedModelState'
+import { useStepImportState } from '~/composables/useStepImportState'
+import { useStepImporter } from '~/composables/useStepImporter'
+import { useStepModelProcessor } from '~/composables/useStepModelProcessor'
+import type {
+  MorandiColorOption,
+  ProcessedStepMesh,
+  ProcessedStepModel,
+  SelectedStepFace
+} from '~/types/step-model'
 
 interface ThreeViewportState {
   scene: Scene | null
@@ -18,26 +34,53 @@ interface ThreeViewportState {
   renderer: WebGLRenderer | null
   controls: OrbitControls | null
   animationFrameId: number | null
+  currentModel: ProcessedStepModel | null
+  currentHelperGroup: Group | null
+  stopWatchingImportState: (() => void) | null
+  stopWatchingFaceState: (() => void) | null
+  raycaster: Raycaster
+  pointer: Vector2
 }
 
 /**
- * Initialize the reusable Three.js viewport infrastructure.
- * Business logic such as STEP parsing and model processing will be added later.
+ * Own the Three.js scene lifecycle and connect it to face picking, coloring, and separation.
  */
 export const useThreeViewport = (
   containerRef: Ref<HTMLDivElement | null>
 ) => {
+  const { activeFile, updateFileStatus } = useStepImportState()
+  const { setCurrentModel } = useProcessedModelState()
+  const {
+    state: faceInteractionState,
+    setSelectedFace
+  } = useFaceInteractionState()
+  const { morandiColors } = useMorandiPalette()
+  const { importStepFile } = useStepImporter()
+  const {
+    fitCameraToModel,
+    findFaceMapping,
+    highlightFace,
+    clearTemporaryMaterials,
+    resetMeshMaterials,
+    applyColorToFace,
+    autoColorModel,
+    separateFace
+  } = useStepModelProcessor()
+
   const state: ThreeViewportState = {
     scene: null,
     camera: null,
     renderer: null,
     controls: null,
-    animationFrameId: null
+    animationFrameId: null,
+    currentModel: null,
+    currentHelperGroup: null,
+    stopWatchingImportState: null,
+    stopWatchingFaceState: null,
+    raycaster: new Raycaster(),
+    pointer: new Vector2()
   }
 
-  /**
-   * Keep camera and renderer dimensions synchronized with the current container.
-   */
   const resizeViewport = (): void => {
     const container = containerRef.value
 
@@ -55,33 +98,29 @@ export const useThreeViewport = (
     state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   }
 
-  /**
-   * Build the scene-level lights to ensure the future model has a clear base illumination.
-   */
   const createLights = (scene: Scene): void => {
-    const ambientLight = new AmbientLight(0xffffff, 1.8)
+    const ambientLight = new AmbientLight(0xffffff, 1.9)
     scene.add(ambientLight)
 
-    const directionalLight = new DirectionalLight(0xffffff, 2.4)
+    const directionalLight = new DirectionalLight(0xffffff, 2.3)
     directionalLight.position.set(4, 8, 6)
     scene.add(directionalLight)
+
+    const fillLight = new DirectionalLight(0xffffff, 1.2)
+    fillLight.position.set(-5, 4, -3)
+    scene.add(fillLight)
   }
 
-  /**
-   * Add lightweight helpers for the early viewport stage.
-   * They can be removed or replaced once the real model pipeline is connected.
-   */
-  const createHelpers = (scene: Scene): void => {
-    const gridHelper = new GridHelper(2, 20, 0x8aa0a5, 0xc9d4d7)
-    scene.add(gridHelper)
+  const createHelperGroup = (): Group => {
+    const helperGroup = new Group()
+    helperGroup.name = 'ViewportHelpers'
 
-    const axesHelper = new AxesHelper(0.8)
-    scene.add(axesHelper)
+    helperGroup.add(new GridHelper(1.2, 12, 0x8aa0a5, 0xc9d4d7))
+    helperGroup.add(new AxesHelper(0.6))
+
+    return helperGroup
   }
 
-  /**
-   * Start the render loop and let OrbitControls update damping each frame.
-   */
   const startRenderLoop = (): void => {
     if (!state.scene || !state.camera || !state.renderer || !state.controls) {
       return
@@ -96,9 +135,220 @@ export const useThreeViewport = (
     renderFrame()
   }
 
-  /**
-   * Create the base viewport with scene, camera, renderer, orbit controls, and lights.
-   */
+  const frameModel = (model: ProcessedStepModel): void => {
+    if (!state.camera || !state.controls) {
+      return
+    }
+
+    const { center, radius } = fitCameraToModel(model)
+    const distance = Math.max(radius * 2.6, 1.6)
+
+    state.controls.target.copy(center)
+    state.camera.position.set(
+      center.x + distance,
+      center.y + distance * 0.7,
+      center.z + distance
+    )
+    state.camera.near = 0.01
+    state.camera.far = Math.max(distance * 20, 100)
+    state.camera.updateProjectionMatrix()
+    state.controls.minDistance = Math.max(radius * 0.2, 0.1)
+    state.controls.maxDistance = Math.max(radius * 12, 25)
+    state.controls.update()
+  }
+
+  const disposeCurrentModel = (): void => {
+    if (!state.scene || !state.currentModel) {
+      return
+    }
+
+    state.scene.remove(state.currentModel.group)
+
+    state.currentModel.meshes.forEach((processedMesh) => {
+      const { geometry, materials, mesh } = processedMesh
+
+      clearTemporaryMaterials(processedMesh)
+      geometry.dispose()
+      materials.forEach((material) => material.dispose())
+
+      const currentMaterial = mesh.material
+      if (Array.isArray(currentMaterial)) {
+        currentMaterial.forEach((material) => {
+          const typedMaterial = material as MeshStandardMaterial
+
+          if (!materials.includes(typedMaterial)) {
+            typedMaterial.dispose()
+          }
+        })
+      }
+    })
+
+    state.currentModel = null
+    setCurrentModel(null)
+    setSelectedFace(null)
+  }
+
+  const renderImportedFile = async (): Promise<void> => {
+    const fileItem = activeFile.value
+
+    if (!fileItem || !state.scene) {
+      return
+    }
+
+    updateFileStatus(fileItem.id, 'processing')
+
+    try {
+      const processedModel = await importStepFile(fileItem.file)
+
+      disposeCurrentModel()
+      state.scene.add(processedModel.group)
+      state.currentModel = processedModel
+      setCurrentModel(processedModel)
+
+      frameModel(processedModel)
+      updateFileStatus(fileItem.id, 'success')
+      setSelectedFace(null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'STEP import failed.'
+      updateFileStatus(fileItem.id, 'error', message)
+    }
+  }
+
+  const findProcessedMeshByObject = (meshId: string): ProcessedStepMesh | null => {
+    return state.currentModel?.meshes.find((meshItem) => meshItem.id === meshId) ?? null
+  }
+
+  const findFaceMappingByTriangleOffset = (
+    processedMesh: ProcessedStepMesh,
+    triangleOffset: number
+  ) => {
+    return processedMesh.faceMappings.find((mapping) => (
+      triangleOffset >= mapping.triangleStart &&
+      triangleOffset <= mapping.triangleEnd
+    )) ?? null
+  }
+
+  const clearHighlightAcrossModel = (): void => {
+    state.currentModel?.meshes.forEach((processedMesh) => {
+      clearTemporaryMaterials(processedMesh)
+    })
+  }
+
+  const updateHighlightForSelection = (): void => {
+    clearHighlightAcrossModel()
+
+    const selectedFace = faceInteractionState.value.selectedFace
+    if (!selectedFace || !state.currentModel) {
+      return
+    }
+
+    const processedMesh = state.currentModel.meshes.find((meshItem) => meshItem.id === selectedFace.meshId)
+    if (!processedMesh) {
+      return
+    }
+
+    highlightFace(processedMesh, selectedFace.faceId)
+  }
+
+  const getSelectedColor = (): MorandiColorOption | null => {
+    return morandiColors.find((color) => color.id === faceInteractionState.value.selectedColorId) ?? null
+  }
+
+  const applySelectedColorToSelection = (): void => {
+    const selectedFace = faceInteractionState.value.selectedFace
+    const selectedColor = getSelectedColor()
+
+    if (!selectedFace || !selectedColor || !state.currentModel) {
+      return
+    }
+
+    const processedMesh = state.currentModel.meshes.find((meshItem) => meshItem.id === selectedFace.meshId)
+    if (!processedMesh) {
+      return
+    }
+
+    applyColorToFace(processedMesh, selectedFace.faceId, selectedColor)
+    highlightFace(processedMesh, selectedFace.faceId)
+  }
+
+  const separateSelectedFace = (): void => {
+    const selectedFace = faceInteractionState.value.selectedFace
+
+    if (!selectedFace || !state.currentModel) {
+      return
+    }
+
+    const separatedMesh = separateFace(state.currentModel, selectedFace)
+
+    if (!separatedMesh) {
+      return
+    }
+
+    setSelectedFace({
+      meshId: separatedMesh.id,
+      faceId: separatedMesh.faceMappings[0].id,
+      meshName: separatedMesh.name,
+      isSeparatedFace: true
+    })
+
+    updateHighlightForSelection()
+  }
+
+  const handleCanvasClick = (event: MouseEvent): void => {
+    const container = containerRef.value
+
+    if (!container || !state.camera || !state.currentModel) {
+      return
+    }
+
+    const rect = container.getBoundingClientRect()
+    state.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    state.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+    state.raycaster.setFromCamera(state.pointer, state.camera)
+
+    const targetMeshes = state.currentModel.meshes.map((meshItem) => meshItem.mesh)
+    const intersections = state.raycaster.intersectObjects(targetMeshes, false)
+    const firstIntersection = intersections[0]
+
+    if (!firstIntersection || firstIntersection.faceIndex == null) {
+      setSelectedFace(null)
+      clearHighlightAcrossModel()
+      return
+    }
+
+    const meshId = firstIntersection.object.userData.meshId as string | undefined
+    if (!meshId) {
+      return
+    }
+
+    const processedMesh = findProcessedMeshByObject(meshId)
+    if (!processedMesh) {
+      return
+    }
+
+    const triangleOffset = firstIntersection.faceIndex
+    const faceMapping = findFaceMappingByTriangleOffset(processedMesh, triangleOffset)
+
+    if (!faceMapping) {
+      return
+    }
+
+    const nextSelection: SelectedStepFace = {
+      meshId: processedMesh.id,
+      faceId: faceMapping.id,
+      meshName: processedMesh.name,
+      isSeparatedFace: processedMesh.isSeparatedFace
+    }
+
+    setSelectedFace(nextSelection)
+    updateHighlightForSelection()
+
+    if (faceInteractionState.value.manualColoringEnabled) {
+      applySelectedColorToSelection()
+    }
+  }
+
   const initializeViewport = (): void => {
     const container = containerRef.value
 
@@ -109,7 +359,7 @@ export const useThreeViewport = (
     const scene = new Scene()
     scene.background = new Color('#edf3f4')
 
-    const camera = new PerspectiveCamera(45, 1, 0.1, 100)
+    const camera = new PerspectiveCamera(45, 1, 0.01, 100)
     camera.position.set(2.4, 2.1, 2.8)
 
     const renderer = new WebGLRenderer({
@@ -125,9 +375,10 @@ export const useThreeViewport = (
     controls.enableDamping = true
     controls.dampingFactor = 0.08
     controls.enablePan = true
-    controls.minDistance = 0.5
-    controls.maxDistance = 20
-    controls.target.set(0, 0.3, 0)
+    controls.enableZoom = true
+    controls.enableRotate = true
+    controls.target.set(0, 0, 0)
+    controls.update()
 
     state.scene = scene
     state.camera = camera
@@ -135,23 +386,74 @@ export const useThreeViewport = (
     state.controls = controls
 
     createLights(scene)
-    createHelpers(scene)
+
+    const helperGroup = createHelperGroup()
+    scene.add(helperGroup)
+    state.currentHelperGroup = helperGroup
+
     resizeViewport()
-    controls.update()
     startRenderLoop()
 
     window.addEventListener('resize', resizeViewport)
+    renderer.domElement.addEventListener('click', handleCanvasClick)
+
+    state.stopWatchingImportState = watch(
+      () => activeFile.value?.id,
+      async () => {
+        await renderImportedFile()
+      },
+      { immediate: true }
+    )
+
+    state.stopWatchingFaceState = watch(
+      [
+        () => faceInteractionState.value.selectedColorId,
+        () => faceInteractionState.value.autoColorRequestToken,
+        () => faceInteractionState.value.separationRequestToken,
+        () => faceInteractionState.value.selectedFace?.faceId,
+        () => faceInteractionState.value.manualColoringEnabled
+      ],
+      ([, autoColorToken, separationToken], previousValues) => {
+        if (!state.currentModel) {
+          return
+        }
+
+        const previousAutoColorToken = previousValues?.[1] ?? null
+        const previousSeparationToken = previousValues?.[2] ?? null
+
+        if (autoColorToken !== previousAutoColorToken) {
+          autoColorModel(state.currentModel)
+          updateHighlightForSelection()
+        }
+
+        if (separationToken !== previousSeparationToken) {
+          separateSelectedFace()
+        }
+      }
+    )
   }
 
-  /**
-   * Release WebGL and event resources when the component is destroyed.
-   */
   const disposeViewport = (): void => {
     window.removeEventListener('resize', resizeViewport)
+    state.stopWatchingImportState?.()
+    state.stopWatchingFaceState?.()
+    state.stopWatchingImportState = null
+    state.stopWatchingFaceState = null
+
+    if (state.renderer) {
+      state.renderer.domElement.removeEventListener('click', handleCanvasClick)
+    }
 
     if (state.animationFrameId !== null) {
       window.cancelAnimationFrame(state.animationFrameId)
       state.animationFrameId = null
+    }
+
+    disposeCurrentModel()
+
+    if (state.currentHelperGroup && state.scene) {
+      state.scene.remove(state.currentHelperGroup)
+      state.currentHelperGroup = null
     }
 
     state.controls?.dispose()
@@ -166,6 +468,7 @@ export const useThreeViewport = (
     state.camera = null
     state.renderer = null
     state.controls = null
+    setCurrentModel(null)
   }
 
   return {
