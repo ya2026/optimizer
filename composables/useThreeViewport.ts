@@ -17,6 +17,7 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
 import { useMorandiPalette } from '~/composables/useMorandiPalette'
+import { useProcessedModelState } from '~/composables/useProcessedModelState'
 import { useStepImportState } from '~/composables/useStepImportState'
 import { useStepImporter } from '~/composables/useStepImporter'
 import { useStepModelProcessor } from '~/composables/useStepModelProcessor'
@@ -48,6 +49,7 @@ export const useThreeViewport = (
   containerRef: Ref<HTMLDivElement | null>
 ) => {
   const { activeFile, updateFileStatus } = useStepImportState()
+  const { setCurrentModel } = useProcessedModelState()
   const {
     state: faceInteractionState,
     setSelectedFace
@@ -182,6 +184,7 @@ export const useThreeViewport = (
     })
 
     state.currentModel = null
+    setCurrentModel(null)
     setSelectedFace(null)
   }
 
@@ -200,6 +203,7 @@ export const useThreeViewport = (
       disposeCurrentModel()
       state.scene.add(processedModel.group)
       state.currentModel = processedModel
+      setCurrentModel(processedModel)
 
       frameModel(processedModel)
       updateFileStatus(fileItem.id, 'success')
@@ -464,6 +468,7 @@ export const useThreeViewport = (
     state.camera = null
     state.renderer = null
     state.controls = null
+    setCurrentModel(null)
   }
 
   return {

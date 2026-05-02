@@ -2,6 +2,7 @@
 import PanelSection from '~/components/panels/PanelSection.vue'
 import { useMorandiPalette } from '~/composables/useMorandiPalette'
 import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
+import { useModelExport } from '~/composables/useModelExport'
 
 const { morandiColors } = useMorandiPalette()
 const {
@@ -12,6 +13,10 @@ const {
   requestFaceSeparation,
   requestAutoColor
 } = useFaceInteractionState()
+const {
+  exportCurrentModelAsGlb,
+  hasExportableModel
+} = useModelExport()
 </script>
 
 <template>
@@ -76,21 +81,16 @@ const {
 
     <PanelSection
       title="Export"
-      description="Keep independent export entries for GLB and FBX outputs."
+      description="Download the full processed model with preserved geometry, materials, Morandi colors, grouping, centering, 1m scale, and normals."
     >
       <div class="export-actions">
         <button
           type="button"
           class="primary-button"
+          :disabled="!hasExportableModel"
+          @click="exportCurrentModelAsGlb"
         >
           Export GLB
-        </button>
-
-        <button
-          type="button"
-          class="primary-button primary-button--secondary"
-        >
-          Export FBX
         </button>
       </div>
     </PanelSection>
