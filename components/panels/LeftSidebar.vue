@@ -13,6 +13,13 @@ const {
   setActiveFile
 } = useStepImportState()
 
+const statusLabelMap = {
+  idle: '待处理',
+  processing: '处理中',
+  success: '已完成',
+  error: '失败'
+} as const
+
 const openDirectoryPicker = (): void => {
   directoryInputRef.value?.click()
 }
@@ -35,8 +42,8 @@ const onFileInputChange = (event: Event): void => {
 <template>
   <aside class="sidebar-panel">
     <PanelSection
-      title="File Operations"
-      description="Reserve the local import entry and file list area for batch STEP file management."
+      title="文件操作"
+      description="提供本地文件夹选择、STEP 文件导入以及批量模型管理入口。"
     >
       <div class="action-card-list">
         <button
@@ -44,8 +51,8 @@ const onFileInputChange = (event: Event): void => {
           class="action-card"
           @click="openDirectoryPicker"
         >
-          <span class="action-card__title">Select Local Folder</span>
-          <span class="action-card__hint">Select a local directory containing STEP files</span>
+          <span class="action-card__title">选择本地文件夹</span>
+          <span class="action-card__hint">选择包含 STEP 文件的本地目录</span>
         </button>
 
         <button
@@ -53,8 +60,8 @@ const onFileInputChange = (event: Event): void => {
           class="action-card"
           @click="openFilePicker"
         >
-          <span class="action-card__title">Import STEP Files</span>
-          <span class="action-card__hint">Import one or more `.step` or `.stp` files</span>
+          <span class="action-card__title">导入 STEP 文件</span>
+          <span class="action-card__hint">导入一个或多个 `.step` 或 `.stp` 文件</span>
         </button>
       </div>
 
@@ -79,8 +86,8 @@ const onFileInputChange = (event: Event): void => {
     </PanelSection>
 
     <PanelSection
-      title="Model File List"
-      description="Imported STEP files are listed here. Selecting a file will render and process it in the central viewport."
+      title="模型文件列表"
+      description="这里会展示已导入的 STEP 文件，点击后会在中间视口中完成处理并显示。"
     >
       <ul class="file-list">
         <li
@@ -102,7 +109,7 @@ const onFileInputChange = (event: Event): void => {
               v-else
               class="file-list__meta"
             >
-              {{ fileItem.status }}
+              {{ statusLabelMap[fileItem.status] }}
             </span>
           </div>
 
@@ -113,7 +120,7 @@ const onFileInputChange = (event: Event): void => {
           v-if="!state.files.length"
           class="file-list__empty"
         >
-          No STEP files selected yet.
+          暂未选择 STEP 文件。
         </li>
       </ul>
     </PanelSection>

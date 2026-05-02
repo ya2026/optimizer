@@ -209,7 +209,7 @@ export const useThreeViewport = (
       updateFileStatus(fileItem.id, 'success')
       setSelectedFace(null)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'STEP import failed.'
+      const message = error instanceof Error ? error.message : 'STEP 导入失败。'
       updateFileStatus(fileItem.id, 'error', message)
     }
   }

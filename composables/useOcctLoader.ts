@@ -11,7 +11,7 @@ const OCCT_SCRIPT_ID = 'occt-import-js-runtime'
 
 const loadOcctScript = async (): Promise<void> => {
   if (!import.meta.client) {
-    throw new Error('STEP parsing is only available in the browser.')
+    throw new Error('STEP 解析仅支持在浏览器环境中运行。')
   }
 
   if (window.occtimportjs) {
@@ -26,7 +26,7 @@ const loadOcctScript = async (): Promise<void> => {
         existingScript.addEventListener('load', () => resolve(), { once: true })
         existingScript.addEventListener(
           'error',
-          () => reject(new Error('Failed to load occt-import-js runtime script.')),
+          () => reject(new Error('occt-import-js 运行时脚本加载失败。')),
           { once: true }
         )
         return
@@ -37,7 +37,7 @@ const loadOcctScript = async (): Promise<void> => {
       scriptElement.src = '/occt-import-js.js'
       scriptElement.async = true
       scriptElement.onload = () => resolve()
-      scriptElement.onerror = () => reject(new Error('Failed to load occt-import-js runtime script.'))
+      scriptElement.onerror = () => reject(new Error('occt-import-js 运行时脚本加载失败。'))
 
       document.head.appendChild(scriptElement)
     })
@@ -52,7 +52,7 @@ const loadOcctScript = async (): Promise<void> => {
 export const useOcctLoader = () => {
   const loadOcct = async (): Promise<OcctModule> => {
     if (!import.meta.client) {
-      throw new Error('STEP parsing is only available in the browser.')
+      throw new Error('STEP 解析仅支持在浏览器环境中运行。')
     }
 
     if (!occtModulePromise) {
@@ -63,7 +63,7 @@ export const useOcctLoader = () => {
       }) => Promise<OcctModule>) | undefined
 
       if (!occtImportFactory) {
-        throw new Error('occt-import-js runtime is loaded, but the factory function is unavailable.')
+        throw new Error('occt-import-js 运行时已加载，但工厂函数不可用。')
       }
 
       occtModulePromise = occtImportFactory({

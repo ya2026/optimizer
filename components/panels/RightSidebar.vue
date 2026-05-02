@@ -22,13 +22,13 @@ const {
 <template>
   <aside class="sidebar-panel">
     <PanelSection
-      title="Manual Coloring"
-      description="Select a Morandi matte color, then click a STEP face in the viewport to color it. The selected face stays highlighted in red."
+      title="手动着色"
+      description="选择一个莫兰迪颜色后，点击视口中的 STEP 面即可着色，当前选中面会保持红色高亮。"
     >
       <div class="toggle-card">
         <div>
-          <p class="toggle-card__label">Manual Coloring Mode</p>
-          <p class="toggle-card__hint">Enable click-to-color while preserving face picking and highlighting</p>
+          <p class="toggle-card__label">手动着色模式</p>
+          <p class="toggle-card__hint">开启后可在保留选面与高亮能力的同时，点击面直接着色</p>
         </div>
 
         <label class="switch">
@@ -42,9 +42,9 @@ const {
       </div>
 
       <div class="selection-summary">
-        <p class="selection-summary__label">Selected Face</p>
+        <p class="selection-summary__label">当前选中面</p>
         <p class="selection-summary__value">
-          {{ state.selectedFace ? `${state.selectedFace.meshName} / ${state.selectedFace.faceId}` : 'No face selected' }}
+          {{ state.selectedFace ? `${state.selectedFace.meshName} / ${state.selectedFace.faceId}` : '未选择任何面' }}
         </p>
       </div>
 
@@ -56,7 +56,7 @@ const {
           class="color-swatch"
           :class="{ 'color-swatch--active': state.selectedColorId === color.id }"
           :style="{ backgroundColor: color.hex }"
-          :aria-label="`Select color ${color.name}`"
+          :aria-label="`选择颜色：${color.name}`"
           @click="setSelectedColorId(color.id)"
         />
       </div>
@@ -66,7 +66,7 @@ const {
         class="primary-button"
         @click="requestAutoColor"
       >
-        Auto Color Model
+        整体自动配色
       </button>
 
       <button
@@ -75,13 +75,13 @@ const {
         :disabled="!canSeparateSelectedFace"
         @click="requestFaceSeparation"
       >
-        Separate Selected Face
+        分离当前选中面
       </button>
     </PanelSection>
 
     <PanelSection
-      title="Export"
-      description="Download the full processed model with preserved geometry, materials, Morandi colors, grouping, centering, 1m scale, and normals."
+      title="导出"
+      description="直接下载完整处理后的模型，并保留几何、材质、莫兰迪颜色、分组、居中、1 米尺度和法线结果。"
     >
       <div class="export-actions">
         <button
@@ -90,7 +90,7 @@ const {
           :disabled="!hasExportableModel"
           @click="exportCurrentModelAsGlb"
         >
-          Export GLB
+          导出 GLB
         </button>
       </div>
     </PanelSection>

@@ -53,7 +53,7 @@ export const useStepModelProcessor = () => {
     sourceName: string
   ): ProcessedStepModel => {
     if (!result.success || !result.meshes.length) {
-      throw new Error('The STEP file could not be converted into mesh data.')
+      throw new Error('STEP 文件无法转换为可渲染的网格数据。')
     }
 
     const group = new Group()
@@ -100,7 +100,7 @@ export const useStepModelProcessor = () => {
     removeEmptyGroups(group)
 
     if (!processedMeshes.length) {
-      throw new Error('No valid mesh geometry remained after cleanup.')
+      throw new Error('几何清理完成后，没有保留下有效网格数据。')
     }
 
     normalizeModelGeometry(processedMeshes)
@@ -137,7 +137,7 @@ export const useStepModelProcessor = () => {
       return null
     }
 
-    const materials = createFaceMaterials(cleanupResult.faceMappings, sourceMesh.color)
+    const materials = createFaceMaterials(cleanupResult.faceMappings)
     const meshId = `mesh-${meshIndex}-${sourceMesh.name || 'unnamed'}`
     const mesh = new Mesh(cleanupResult.geometry, materials)
 
@@ -307,7 +307,9 @@ export const useStepModelProcessor = () => {
         triangleEnd,
         indexStart: triangleStart * 3,
         indexCount: mappedTriangles.length * 3,
-        color: faceRange.color ?? null,
+        // Imported models should start from a neutral gray appearance.
+        // Runtime coloring is tracked here only after the user or auto-color action updates it.
+        color: null,
         materialIndex
       })
     })
@@ -334,20 +336,13 @@ export const useStepModelProcessor = () => {
   }
 
   const createFaceMaterials = (
-    faceMappings: StepFaceMapping[],
-    baseColor?: [number, number, number]
+    faceMappings: StepFaceMapping[]
   ): MeshStandardMaterial[] => {
     if (!faceMappings.length) {
-      return [createStandardMaterial(baseColor)]
+      return [createStandardMaterial()]
     }
 
-    return faceMappings.map((mapping) => {
-      if (mapping.color) {
-        return createStandardMaterial(mapping.color)
-      }
-
-      return createStandardMaterial(baseColor)
-    })
+    return faceMappings.map(() => createStandardMaterial())
   }
 
   const createStandardMaterial = (
