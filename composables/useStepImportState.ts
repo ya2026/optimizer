@@ -14,11 +14,6 @@ interface StepImportState {
   activeFileId: string | null
 }
 
-const state = useState<StepImportState>('step-import-state', () => ({
-  files: [],
-  activeFileId: null
-}))
-
 const createFileId = (file: File): string => {
   return `${file.name}-${file.size}-${file.lastModified}`
 }
@@ -29,6 +24,11 @@ const isStepFile = (file: File): boolean => {
 }
 
 export const useStepImportState = () => {
+  const state = useState<StepImportState>('step-import-state', () => ({
+    files: [],
+    activeFileId: null
+  }))
+
   const registerFiles = (inputFiles: FileList | File[]): void => {
     const fileArray = Array.from(inputFiles).filter(isStepFile)
 
