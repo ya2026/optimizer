@@ -14,8 +14,8 @@
   --radius-lg: 18px;
   --radius-md: 14px;
   --layout-gap: 20px;
-  --sidebar-width: 320px;
-  --header-height: 88px;
+  --sidebar-width: 280px;
+  --header-height: 72px;
   font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -52,7 +52,7 @@ button {
 
 .page-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 18px;
 }
 
 .app-header {
@@ -61,7 +61,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   padding: 0 8px;
 }
 
@@ -76,7 +76,7 @@ button {
 
 .app-header__title {
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
 }
 
@@ -91,9 +91,9 @@ button {
 
 .workspace-layout {
   display: grid;
-  grid-template-columns: minmax(260px, var(--sidebar-width)) minmax(0, 1fr) minmax(260px, var(--sidebar-width));
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1.25fr) minmax(240px, 280px);
   gap: var(--layout-gap);
-  min-height: calc(100vh - 24px * 2 - var(--header-height) - 20px);
+  min-height: calc(100vh - 18px * 2 - var(--header-height) - 16px);
 }
 
 .sidebar-panel,
@@ -112,8 +112,29 @@ button {
   gap: var(--layout-gap);
 }
 
+.sidebar-panel--left,
+.sidebar-panel--right {
+  height: 100%;
+}
+
+.sidebar-panel__stretch {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar-panel__stretch .panel-section__content {
+  flex: 1;
+  min-height: 0;
+}
+
 .viewer-panel {
   min-width: 0;
+}
+
+.viewer-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 .panel-section {
@@ -155,9 +176,18 @@ button {
 }
 
 .action-card-list,
-.export-actions {
+.export-actions,
+.rotation-grid {
   display: grid;
   gap: 12px;
+}
+
+.rotation-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.export-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .action-card,
@@ -198,6 +228,8 @@ button {
   margin: 0;
   padding: 0;
   list-style: none;
+  min-height: 0;
+  align-content: start;
 }
 
 .file-list__item {
@@ -270,7 +302,7 @@ button {
 
 .viewer-canvas {
   position: relative;
-  min-height: 460px;
+  min-height: 620px;
   border: 1px dashed rgba(47, 107, 115, 0.35);
   border-radius: calc(var(--radius-xl) - 4px);
   background:
@@ -290,6 +322,57 @@ button {
       transparent 36px
     );
   overflow: hidden;
+}
+
+.rotation-dock {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: min(280px, calc(100% - 36px));
+  padding: 14px;
+  border: 1px solid rgba(19, 35, 47, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 18px 42px rgba(23, 37, 45, 0.14);
+  backdrop-filter: blur(14px);
+  z-index: 3;
+}
+
+.rotation-dock__header {
+  margin-bottom: 10px;
+}
+
+.rotation-dock__title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.rotation-dock__description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-soft);
+}
+
+.rotation-dock__angles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rotation-dock__angles span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent);
 }
 
 .viewer-canvas canvas {
@@ -485,11 +568,17 @@ button {
 .primary-button {
   align-items: center;
   justify-content: center;
-  min-height: 52px;
+  min-height: 46px;
   font-size: 15px;
   font-weight: 700;
   color: #ffffff;
   background: linear-gradient(135deg, #2f6b73, #35545a);
+}
+
+.rotation-dock .primary-button {
+  min-height: 42px;
+  padding: 12px 14px;
+  font-size: 14px;
 }
 
 .primary-button--secondary {
@@ -533,7 +622,7 @@ button {
 
 @media (max-width: 1200px) {
   .workspace-layout {
-    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+    grid-template-columns: minmax(230px, 260px) minmax(0, 1fr);
   }
 
   .workspace-layout > :last-child {
@@ -542,6 +631,14 @@ button {
 
   .workspace-feature-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .viewer-canvas {
+    min-height: 560px;
+  }
+
+  .rotation-dock {
+    width: min(250px, calc(100% - 32px));
   }
 }
 
@@ -574,5 +671,20 @@ button {
 
   .color-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .viewer-canvas {
+    min-height: 460px;
+  }
+
+  .rotation-dock {
+    position: static;
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  .export-actions,
+  .rotation-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import PanelSection from '~/components/panels/PanelSection.vue'
 import { useMorandiPalette } from '~/composables/useMorandiPalette'
 import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
-import { useModelExport } from '~/composables/useModelExport'
 
 const { morandiColors } = useMorandiPalette()
 const {
@@ -14,12 +13,6 @@ const {
   requestFaceSeparation,
   requestAutoColor
 } = useFaceInteractionState()
-const {
-  exportCurrentModelAsGlb,
-  exportCurrentModelAsFbx,
-  hasExportableModel
-} = useModelExport()
-
 const manualColoringEnabled = computed({
   get: () => state.value.manualColoringEnabled,
   set: (enabled: boolean) => {
@@ -33,8 +26,9 @@ const manualColoringStatusText = computed(() => {
 </script>
 
 <template>
-  <aside class="sidebar-panel">
+  <aside class="sidebar-panel sidebar-panel--right">
     <PanelSection
+      class="sidebar-panel__stretch"
       title="手动着色"
       description="提供 8 个按赤橙黄绿青蓝靛紫排列的低饱和色盘。导入后模型会自动配色，开启手动模式后可继续点击面替换颜色。"
     >
@@ -92,31 +86,6 @@ const manualColoringStatusText = computed(() => {
       >
         分离当前选中面
       </button>
-    </PanelSection>
-
-    <PanelSection
-      title="导出"
-      description="直接下载完整处理后的模型，并保留几何、材质、颜色、分组、居中、1 米尺度和法线结果。"
-    >
-      <div class="export-actions">
-        <button
-          type="button"
-          class="primary-button"
-          :disabled="!hasExportableModel"
-          @click="exportCurrentModelAsGlb"
-        >
-          导出 GLB
-        </button>
-
-        <button
-          type="button"
-          class="primary-button primary-button--secondary"
-          :disabled="!hasExportableModel"
-          @click="exportCurrentModelAsFbx"
-        >
-          导出 FBX
-        </button>
-      </div>
     </PanelSection>
   </aside>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import ExportPanel from '~/components/panels/ExportPanel.vue'
 import PanelSection from '~/components/panels/PanelSection.vue'
 import { useStepImportState } from '~/composables/useStepImportState'
 
@@ -40,7 +41,7 @@ const onFileInputChange = (event: Event): void => {
 </script>
 
 <template>
-  <aside class="sidebar-panel">
+  <aside class="sidebar-panel sidebar-panel--left">
     <PanelSection
       title="文件操作"
       description="提供本地文件夹选择、STEP 文件导入以及批量模型管理入口。"
@@ -86,6 +87,7 @@ const onFileInputChange = (event: Event): void => {
     </PanelSection>
 
     <PanelSection
+      class="sidebar-panel__stretch"
       title="模型文件列表"
       description="这里会展示已导入的 STEP 文件，点击后会在中间视口中完成处理并显示。"
     >
@@ -124,5 +126,7 @@ const onFileInputChange = (event: Event): void => {
         </li>
       </ul>
     </PanelSection>
+
+    <ExportPanel />
   </aside>
 </template>
