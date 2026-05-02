@@ -35,9 +35,6 @@ onBeforeUnmount(() => {
       class="viewer-canvas__empty"
     >
       <p class="viewer-canvas__empty-title">导入 STEP 文件后开始预览</p>
-      <p class="viewer-canvas__empty-hint">
-        当前已完成浏览器端 STEP 解析、面映射、几何清理、归一化与渲染管线初始化。
-      </p>
     </div>
   </div>
 </template>

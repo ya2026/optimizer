@@ -20,9 +20,18 @@ const {
     </div>
 
     <div class="rotation-dock__angles">
-      <span>X {{ rotationState.x }}°</span>
-      <span>Y {{ rotationState.y }}°</span>
-      <span>Z {{ rotationState.z }}°</span>
+      <span class="rotation-dock__angle-pill">
+        <span class="rotation-dock__angle-axis">X</span>
+        <span class="rotation-dock__angle-value">{{ rotationState.x }}°</span>
+      </span>
+      <span class="rotation-dock__angle-pill">
+        <span class="rotation-dock__angle-axis">Y</span>
+        <span class="rotation-dock__angle-value">{{ rotationState.y }}°</span>
+      </span>
+      <span class="rotation-dock__angle-pill">
+        <span class="rotation-dock__angle-axis">Z</span>
+        <span class="rotation-dock__angle-value">{{ rotationState.z }}°</span>
+      </span>
     </div>
 
     <div class="rotation-grid">

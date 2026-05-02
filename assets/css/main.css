@@ -120,11 +120,21 @@ button {
 .sidebar-panel__stretch {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-panel__stretch.panel-section {
+  min-height: 0;
 }
 
 .sidebar-panel__stretch .panel-section__content {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-panel__stretch .panel-section__content > *:last-child {
+  margin-bottom: 0;
 }
 
 .viewer-panel {
@@ -228,8 +238,44 @@ button {
   margin: 0;
   padding: 0;
   list-style: none;
-  min-height: 0;
   align-content: start;
+}
+
+.file-list-container {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.file-list-scroll {
+  min-height: 0;
+  overflow-y: hidden;
+  padding-right: 6px;
+}
+
+.file-list-scroll--scrollable {
+  max-height: 272px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-top: 6px;
+}
+
+.file-list-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.file-list-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(47, 107, 115, 0.08);
+}
+
+.file-list-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(47, 107, 115, 0.3);
+}
+
+.file-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(47, 107, 115, 0.44);
 }
 
 .file-list__item {
@@ -288,6 +334,27 @@ button {
   color: var(--color-accent);
   font-size: 12px;
   font-weight: 700;
+}
+
+.file-list__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.file-list__delete {
+  padding: 0;
+  background: transparent;
+  color: #b85656;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.file-list__delete:hover {
+  color: #983f3f;
 }
 
 .file-list__empty {
@@ -358,21 +425,28 @@ button {
 .rotation-dock__angles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.rotation-dock__angles span {
+.rotation-dock__angle-pill {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 28px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
   font-size: 12px;
   font-weight: 700;
   color: var(--color-accent);
+  gap: 12px;
+}
+
+.rotation-dock__angle-axis {
+  display: inline-flex;
+  padding-right: 2px;
+}
+
+.rotation-dock__angle-value {
+  letter-spacing: 0.02em;
 }
 
 .viewer-canvas canvas {
@@ -556,6 +630,8 @@ button {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  padding-left: 4px;
+  overflow: visible;
 }
 
 .color-swatch {
@@ -681,6 +757,10 @@ button {
     position: static;
     width: 100%;
     margin-top: 14px;
+  }
+
+  .rotation-dock__angles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .export-actions,

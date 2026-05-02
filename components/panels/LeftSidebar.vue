@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import ExportPanel from '~/components/panels/ExportPanel.vue'
 import PanelSection from '~/components/panels/PanelSection.vue'
 import { useStepImportState } from '~/composables/useStepImportState'
@@ -11,8 +11,11 @@ const {
   state,
   activeFile,
   registerFiles,
+  removeFile,
   setActiveFile
 } = useStepImportState()
+
+const shouldEnableFileListScroll = computed(() => state.value.files.length >= 2)
 
 const statusLabelMap = {
   idle: '待处理',
@@ -38,14 +41,15 @@ const onFileInputChange = (event: Event): void => {
 
   registerFiles(target.files)
 }
+
+const onRemoveFile = (fileId: string): void => {
+  removeFile(fileId)
+}
 </script>
 
 <template>
   <aside class="sidebar-panel sidebar-panel--left">
-    <PanelSection
-      title="文件操作"
-      description="提供本地文件夹选择、STEP 文件导入以及批量模型管理入口。"
-    >
+    <PanelSection title="文件操作">
       <div class="action-card-list">
         <button
           type="button"
@@ -89,42 +93,58 @@ const onFileInputChange = (event: Event): void => {
     <PanelSection
       class="sidebar-panel__stretch"
       title="模型文件列表"
-      description="这里会展示已导入的 STEP 文件，点击后会在中间视口中完成处理并显示。"
     >
-      <ul class="file-list">
-        <li
-          v-for="fileItem in state.files"
-          :key="fileItem.id"
-          class="file-list__item"
-          :class="{ 'file-list__item--active': activeFile?.id === fileItem.id }"
-          @click="setActiveFile(fileItem.id)"
+      <div class="file-list-container">
+        <div
+          class="file-list-scroll"
+          :class="{ 'file-list-scroll--scrollable': shouldEnableFileListScroll }"
         >
-          <div class="file-list__content">
-            <span class="file-list__name">{{ fileItem.name }}</span>
-            <span
-              v-if="fileItem.errorMessage"
-              class="file-list__meta file-list__meta--error"
+          <ul class="file-list">
+            <li
+              v-for="fileItem in state.files"
+              :key="fileItem.id"
+              class="file-list__item"
+              :class="{ 'file-list__item--active': activeFile?.id === fileItem.id }"
+              @click="setActiveFile(fileItem.id)"
             >
-              {{ fileItem.errorMessage }}
-            </span>
-            <span
-              v-else
-              class="file-list__meta"
+              <div class="file-list__content">
+                <span class="file-list__name">{{ fileItem.name }}</span>
+                <span
+                  v-if="fileItem.errorMessage"
+                  class="file-list__meta file-list__meta--error"
+                >
+                  {{ fileItem.errorMessage }}
+                </span>
+              <span
+                v-else
+                class="file-list__meta"
+              >
+                {{ statusLabelMap[fileItem.status] }}
+              </span>
+            </div>
+
+            <div class="file-list__actions">
+              <span class="file-list__tag">STEP</span>
+              <button
+                type="button"
+                class="file-list__delete"
+                aria-label="删除文件"
+                @click.stop="onRemoveFile(fileItem.id)"
+              >
+                删除
+              </button>
+            </div>
+            </li>
+
+            <li
+              v-if="!state.files.length"
+              class="file-list__empty"
             >
-              {{ statusLabelMap[fileItem.status] }}
-            </span>
-          </div>
-
-          <span class="file-list__tag">STEP</span>
-        </li>
-
-        <li
-          v-if="!state.files.length"
-          class="file-list__empty"
-        >
-          暂未选择 STEP 文件。
-        </li>
-      </ul>
+              暂未选择 STEP 文件。
+            </li>
+          </ul>
+        </div>
+      </div>
     </PanelSection>
 
     <ExportPanel />

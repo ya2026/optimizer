@@ -10,10 +10,7 @@ const {
 </script>
 
 <template>
-  <PanelSection
-    title="导出"
-    description="直接下载完整处理后的模型，并保留几何、材质、颜色、分组、居中、1 米尺度和法线结果。"
-  >
+  <PanelSection title="导出">
     <div class="export-actions">
       <button
         type="button"

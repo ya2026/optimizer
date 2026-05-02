@@ -30,7 +30,6 @@ const manualColoringStatusText = computed(() => {
     <PanelSection
       class="sidebar-panel__stretch"
       title="手动着色"
-      description="提供 8 个按赤橙黄绿青蓝靛紫排列的低饱和色盘。导入后模型会自动配色，开启手动模式后可继续点击面替换颜色。"
     >
       <div class="toggle-card">
         <div>

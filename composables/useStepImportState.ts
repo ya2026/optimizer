@@ -49,6 +49,17 @@ export const useStepImportState = () => {
     state.value.activeFileId = fileId
   }
 
+  const removeFile = (fileId: string): void => {
+    const nextFiles = state.value.files.filter((fileItem) => fileItem.id !== fileId)
+    state.value.files = nextFiles
+
+    if (state.value.activeFileId !== fileId) {
+      return
+    }
+
+    state.value.activeFileId = nextFiles[0]?.id ?? null
+  }
+
   const updateFileStatus = (
     fileId: string,
     status: StepImportFileItem['status'],
@@ -72,6 +83,7 @@ export const useStepImportState = () => {
     state: readonly(state),
     activeFile,
     registerFiles,
+    removeFile,
     setActiveFile,
     updateFileStatus
   }
