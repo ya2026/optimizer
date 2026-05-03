@@ -7,10 +7,12 @@ import {
   GridHelper,
   Group,
   MeshStandardMaterial,
+  MOUSE,
   PerspectiveCamera,
   Raycaster,
   Scene,
   SRGBColorSpace,
+  TOUCH,
   Vector2,
   WebGLRenderer
 } from 'three'
@@ -154,6 +156,22 @@ export const useThreeViewport = (
     state.camera.updateProjectionMatrix()
     state.controls.minDistance = Math.max(radius * 0.18, 0.08)
     state.controls.maxDistance = Math.max(radius * 10, 18)
+    state.controls.update()
+  }
+
+  const setFrontView = (): void => {
+    if (!state.currentModel || !state.camera || !state.controls) {
+      return
+    }
+
+    const { center, radius } = fitCameraToModel(state.currentModel)
+    const distance = Math.max(radius * 1.95, 1.15)
+
+    state.controls.target.copy(center)
+    state.camera.position.set(center.x, center.y, center.z + distance)
+    state.camera.up.set(0, 1, 0)
+    state.camera.lookAt(center)
+    state.camera.updateProjectionMatrix()
     state.controls.update()
   }
 
@@ -396,6 +414,15 @@ export const useThreeViewport = (
     controls.enablePan = true
     controls.enableZoom = true
     controls.enableRotate = true
+    controls.mouseButtons = {
+      LEFT: MOUSE.ROTATE,
+      MIDDLE: MOUSE.DOLLY,
+      RIGHT: MOUSE.PAN
+    }
+    controls.touches = {
+      ONE: TOUCH.ROTATE,
+      TWO: TOUCH.DOLLY_PAN
+    }
     controls.target.set(0, 0, 0)
     controls.update()
 
@@ -507,6 +534,7 @@ export const useThreeViewport = (
 
   return {
     initializeViewport,
-    disposeViewport
+    disposeViewport,
+    setFrontView
   }
 }
