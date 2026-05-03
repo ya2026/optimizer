@@ -66,7 +66,7 @@ const onRemoveFile = (fileId: string): void => {
           @click="openFilePicker"
         >
           <span class="action-card__title">导入 STEP 文件</span>
-          <span class="action-card__hint">导入一个或多个 `.step` 或 `.stp` 文件</span>
+          <span class="action-card__hint">导入一个或多个 STEP 文件</span>
         </button>
       </div>
 
@@ -115,25 +115,25 @@ const onRemoveFile = (fileId: string): void => {
                 >
                   {{ fileItem.errorMessage }}
                 </span>
-              <span
-                v-else
-                class="file-list__meta"
-              >
-                {{ statusLabelMap[fileItem.status] }}
-              </span>
-            </div>
+                  <span
+                    v-else
+                    class="file-list__meta"
+                  >
+                    {{ statusLabelMap[fileItem.status] }}
+                  </span>
+                </div>
 
-            <div class="file-list__actions">
-              <span class="file-list__tag">STEP</span>
-              <button
-                type="button"
-                class="file-list__delete"
-                aria-label="删除文件"
-                @click.stop="onRemoveFile(fileItem.id)"
-              >
-                删除
-              </button>
-            </div>
+                <div class="file-list__actions">
+                  <span class="file-list__tag">STEP</span>
+                  <button
+                    type="button"
+                    class="file-list__delete"
+                    aria-label="删除文件"
+                    @click.stop="onRemoveFile(fileItem.id)"
+                  >
+                    删除
+                  </button>
+                </div>
             </li>
 
             <li

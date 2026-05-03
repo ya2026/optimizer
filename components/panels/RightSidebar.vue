@@ -32,7 +32,7 @@ const manualColoringStatusText = computed(() => {
       title="手动着色"
     >
       <div class="toggle-card">
-        <div>
+        <div class="toggle-card__content">
           <p class="toggle-card__label">手动着色模式</p>
           <p class="toggle-card__status">
             {{ manualColoringStatusText }}

@@ -141,10 +141,20 @@ button {
   min-width: 0;
 }
 
+.viewer-panel > .panel-section {
+  min-height: 100%;
+}
+
+.viewer-panel > .panel-section > .panel-section__content {
+  flex: 1;
+  min-height: 0;
+}
+
 .viewer-stage {
   position: relative;
   flex: 1;
   min-height: 0;
+  display: flex;
 }
 
 .panel-section {
@@ -369,6 +379,7 @@ button {
 
 .viewer-canvas {
   position: relative;
+  flex: 1;
   min-height: 620px;
   border: 1px dashed rgba(47, 107, 115, 0.35);
   border-radius: calc(var(--radius-xl) - 4px);
@@ -554,6 +565,14 @@ button {
   background: rgba(255, 255, 255, 0.92);
 }
 
+.toggle-card__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 72px;
+}
+
 .toggle-card__label {
   margin: 0 0 6px;
   font-weight: 700;
@@ -570,6 +589,10 @@ button {
 .toggle-card__hint {
   margin: 0;
   font-size: 13px;
+  line-height: 1.7;
+  text-align: justify;
+  text-align-last: left;
+  text-justify: inter-ideograph;
   color: var(--color-text-soft);
 }
 
