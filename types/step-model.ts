@@ -40,6 +40,7 @@ export interface StepFaceMapping {
   faceIndex: number
   triangleStart: number
   triangleEnd: number
+  triangleIndices: number[]
   indexStart: number
   indexCount: number
   color: [number, number, number] | null

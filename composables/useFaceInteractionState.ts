@@ -6,6 +6,7 @@ interface FaceInteractionState {
   selectedFace: SelectedStepFace | null
   separationRequestToken: number
   autoColorRequestToken: number
+  saveColorRequestToken: number
 }
 
 export const useFaceInteractionState = () => {
@@ -14,7 +15,8 @@ export const useFaceInteractionState = () => {
     selectedColorId: 'spectrum-red',
     selectedFace: null,
     separationRequestToken: 0,
-    autoColorRequestToken: 0
+    autoColorRequestToken: 0,
+    saveColorRequestToken: 0
   }))
 
   const setManualColoringEnabled = (enabled: boolean): void => {
@@ -37,6 +39,10 @@ export const useFaceInteractionState = () => {
     state.value.autoColorRequestToken += 1
   }
 
+  const requestSaveColors = (): void => {
+    state.value.saveColorRequestToken += 1
+  }
+
   const canSeparateSelectedFace = computed(() => state.value.selectedFace !== null)
 
   return {
@@ -46,6 +52,7 @@ export const useFaceInteractionState = () => {
     setSelectedColorId,
     setSelectedFace,
     requestFaceSeparation,
-    requestAutoColor
+    requestAutoColor,
+    requestSaveColors
   }
 }

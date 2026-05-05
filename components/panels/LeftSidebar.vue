@@ -21,7 +21,7 @@ const statusLabelMap = {
   idle: '待处理',
   processing: '处理中',
   success: '已完成',
-  error: '失败'
+  error: '导入失败'
 } as const
 
 const openDirectoryPicker = (): void => {
@@ -40,6 +40,7 @@ const onFileInputChange = (event: Event): void => {
   }
 
   registerFiles(target.files)
+  target.value = ''
 }
 
 const onRemoveFile = (fileId: string): void => {
@@ -110,30 +111,25 @@ const onRemoveFile = (fileId: string): void => {
               <div class="file-list__content">
                 <span class="file-list__name">{{ fileItem.name }}</span>
                 <span
-                  v-if="fileItem.errorMessage"
-                  class="file-list__meta file-list__meta--error"
+                  class="file-list__meta"
+                  :class="{ 'file-list__meta--error': fileItem.status === 'error' }"
+                  :title="fileItem.errorMessage ?? statusLabelMap[fileItem.status]"
                 >
-                  {{ fileItem.errorMessage }}
+                  {{ fileItem.errorMessage ? statusLabelMap.error : statusLabelMap[fileItem.status] }}
                 </span>
-                  <span
-                    v-else
-                    class="file-list__meta"
-                  >
-                    {{ statusLabelMap[fileItem.status] }}
-                  </span>
-                </div>
+              </div>
 
-                <div class="file-list__actions">
-                  <span class="file-list__tag">STEP</span>
-                  <button
-                    type="button"
-                    class="file-list__delete"
-                    aria-label="删除文件"
-                    @click.stop="onRemoveFile(fileItem.id)"
-                  >
-                    删除
-                  </button>
-                </div>
+              <div class="file-list__actions">
+                <span class="file-list__tag">STEP</span>
+                <button
+                  type="button"
+                  class="file-list__delete"
+                  aria-label="删除文件"
+                  @click.stop="onRemoveFile(fileItem.id)"
+                >
+                  删除
+                </button>
+              </div>
             </li>
 
             <li

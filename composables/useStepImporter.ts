@@ -1,17 +1,53 @@
-import type { OcctStepReadResult, ProcessedStepModel } from '~/types/step-model'
 import { useOcctLoader } from '~/composables/useOcctLoader'
 import { useStepModelProcessor } from '~/composables/useStepModelProcessor'
+import type { OcctStepReadResult, ProcessedStepModel } from '~/types/step-model'
 
-const IMPORT_PARAMS = {
-  linearUnit: 'meter',
-  linearDeflectionType: 'bounding_box_ratio',
-  linearDeflection: 0.001,
-  angularDeflection: 0.5
-} as const
+interface ImportAttemptConfig {
+  label: string
+  params: Record<string, unknown> | null
+}
 
-/**
- * Read a STEP file and convert it into a processed Three.js-ready model.
- */
+interface ImportAttemptResult {
+  label: string
+  success: boolean
+  meshCount: number
+  errorText: string | null
+}
+
+const IMPORT_ATTEMPTS: ImportAttemptConfig[] = [
+  {
+    label: 'meter-bbox-0.001',
+    params: {
+      linearUnit: 'meter',
+      linearDeflectionType: 'bounding_box_ratio',
+      linearDeflection: 0.001,
+      angularDeflection: 0.5
+    }
+  },
+  {
+    label: 'meter-bbox-0.01',
+    params: {
+      linearUnit: 'meter',
+      linearDeflectionType: 'bounding_box_ratio',
+      linearDeflection: 0.01,
+      angularDeflection: 1
+    }
+  },
+  {
+    label: 'millimeter-bbox-0.001',
+    params: {
+      linearUnit: 'millimeter',
+      linearDeflectionType: 'bounding_box_ratio',
+      linearDeflection: 0.001,
+      angularDeflection: 0.5
+    }
+  },
+  {
+    label: 'default-null',
+    params: null
+  }
+] as const
+
 export const useStepImporter = () => {
   const { loadOcct } = useOcctLoader()
   const { processStepResult } = useStepModelProcessor()
@@ -19,22 +55,52 @@ export const useStepImporter = () => {
   const importStepFile = async (file: File): Promise<ProcessedStepModel> => {
     const fileBuffer = new Uint8Array(await file.arrayBuffer())
     const occt = await loadOcct()
-    const result = occt.ReadStepFile(fileBuffer, { ...IMPORT_PARAMS }) as OcctStepReadResult & {
+    const attemptDiagnostics: ImportAttemptResult[] = []
+    let lastFailureResult: (OcctStepReadResult & {
       error?: string
       message?: string
       exception?: string
+    }) | null = null
+
+    for (const attempt of IMPORT_ATTEMPTS) {
+      const result = occt.ReadStepFile(fileBuffer, attempt.params) as OcctStepReadResult & {
+        error?: string
+        message?: string
+        exception?: string
+      }
+
+      const meshCount = Array.isArray(result.meshes) ? result.meshes.length : 0
+      const errorText = extractOcctErrorText(result)
+
+      attemptDiagnostics.push({
+        label: attempt.label,
+        success: result.success,
+        meshCount,
+        errorText
+      })
+
+      if (meshCount > 0) {
+        return processStepResult(result, file.name)
+      }
+
+      lastFailureResult = result
     }
 
-    if (!result.success) {
-      throw new Error(buildStepImportErrorMessage(file.name, result))
-    }
-
-    return processStepResult(result, file.name)
+    throw new Error(buildStepImportErrorMessage(file.name, lastFailureResult, attemptDiagnostics))
   }
 
   return {
     importStepFile
   }
+}
+
+const extractOcctErrorText = (result: {
+  error?: string
+  message?: string
+  exception?: string
+}): string | null => {
+  return [result.error, result.message, result.exception]
+    .find((item) => typeof item === 'string' && item.trim().length > 0) ?? null
 }
 
 const buildStepImportErrorMessage = (
@@ -43,14 +109,20 @@ const buildStepImportErrorMessage = (
     error?: string
     message?: string
     exception?: string
-  }
+  } | null,
+  attemptDiagnostics: ImportAttemptResult[]
 ): string => {
-  const details = [result.error, result.message, result.exception]
-    .find((item) => typeof item === 'string' && item.trim().length > 0)
+  const details = result ? extractOcctErrorText(result) : null
+  const attemptSummary = attemptDiagnostics
+    .map((attempt) => {
+      const suffix = attempt.errorText ? `, error=${attempt.errorText}` : ''
+      return `${attempt.label}: success=${attempt.success}, meshes=${attempt.meshCount}${suffix}`
+    })
+    .join(' | ')
 
   if (details) {
-    return `STEP 文件解析失败：${fileName}。${details}`
+    return `STEP 文件解析失败：${fileName}。${details}。重试结果：${attemptSummary}`
   }
 
-  return `STEP 文件解析失败：${fileName}。当前失败发生在 STEP 解码阶段，通常是文件数据不完整、文件本体损坏，或该文件包含当前解析器暂不支持的 STEP 实体。`
+  return `STEP 文件解析失败：${fileName}。所有导入策略都没有生成可用 mesh。重试结果：${attemptSummary}`
 }

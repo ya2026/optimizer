@@ -17,11 +17,12 @@ import {
   WebGLRenderer
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { useFaceColorPersistence } from '~/composables/useFaceColorPersistence'
 import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
 import { useMorandiPalette } from '~/composables/useMorandiPalette'
 import { useProcessedModelState } from '~/composables/useProcessedModelState'
-import { useStepImportState } from '~/composables/useStepImportState'
 import { useStepImporter } from '~/composables/useStepImporter'
+import { useStepImportState } from '~/composables/useStepImportState'
 import { useStepModelProcessor } from '~/composables/useStepModelProcessor'
 import type {
   MorandiColorOption,
@@ -42,11 +43,9 @@ interface ThreeViewportState {
   stopWatchingFaceState: (() => void) | null
   raycaster: Raycaster
   pointer: Vector2
+  importRequestToken: number
 }
 
-/**
- * Own the Three.js scene lifecycle and connect it to face picking, coloring, and separation.
- */
 export const useThreeViewport = (
   containerRef: Ref<HTMLDivElement | null>
 ) => {
@@ -56,16 +55,16 @@ export const useThreeViewport = (
     state: faceInteractionState,
     setSelectedFace
   } = useFaceInteractionState()
+  const { saveModelFaceColors, loadSavedFaceColors } = useFaceColorPersistence()
   const { morandiColors } = useMorandiPalette()
   const { importStepFile } = useStepImporter()
   const {
     fitCameraToModel,
-    findFaceMapping,
     highlightFace,
     clearTemporaryMaterials,
-    resetMeshMaterials,
     applyColorToFace,
     autoColorModel,
+    applySavedFaceColors,
     separateFace
   } = useStepModelProcessor()
 
@@ -80,7 +79,8 @@ export const useThreeViewport = (
     stopWatchingImportState: null,
     stopWatchingFaceState: null,
     raycaster: new Raycaster(),
-    pointer: new Vector2()
+    pointer: new Vector2(),
+    importRequestToken: 0
   }
 
   const resizeViewport = (): void => {
@@ -95,7 +95,6 @@ export const useThreeViewport = (
 
     state.camera.aspect = width / height
     state.camera.updateProjectionMatrix()
-
     state.renderer.setSize(width, height, false)
     state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   }
@@ -116,10 +115,8 @@ export const useThreeViewport = (
   const createHelperGroup = (): Group => {
     const helperGroup = new Group()
     helperGroup.name = 'ViewportHelpers'
-
     helperGroup.add(new GridHelper(1.2, 12, 0x8aa0a5, 0xc9d4d7))
     helperGroup.add(new AxesHelper(0.6))
-
     return helperGroup
   }
 
@@ -213,10 +210,21 @@ export const useThreeViewport = (
       return
     }
 
+    state.importRequestToken += 1
+    const currentRequestToken = state.importRequestToken
+
     updateFileStatus(fileItem.id, 'processing')
 
     try {
       const processedModel = await importStepFile(fileItem.file)
+
+      if (currentRequestToken !== state.importRequestToken) {
+        processedModel.meshes.forEach((processedMesh) => {
+          processedMesh.geometry.dispose()
+          processedMesh.materials.forEach((material) => material.dispose())
+        })
+        return
+      }
 
       disposeCurrentModel()
       state.scene.add(processedModel.group)
@@ -224,11 +232,17 @@ export const useThreeViewport = (
       setCurrentModel(processedModel)
 
       autoColorModel(processedModel)
+      applySavedFaceColors(processedModel, loadSavedFaceColors(processedModel.sourceName))
       frameModel(processedModel)
       updateFileStatus(fileItem.id, 'success')
       setSelectedFace(null)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'STEP 导入失败。'
+      if (currentRequestToken !== state.importRequestToken) {
+        return
+      }
+
+      disposeCurrentModel()
+      const message = error instanceof Error ? error.message : 'STEP 文件导入失败。'
       updateFileStatus(fileItem.id, 'error', message)
     }
   }
@@ -242,8 +256,7 @@ export const useThreeViewport = (
     triangleOffset: number
   ) => {
     return processedMesh.faceMappings.find((mapping) => (
-      triangleOffset >= mapping.triangleStart &&
-      triangleOffset <= mapping.triangleEnd
+      mapping.triangleIndices.includes(triangleOffset)
     )) ?? null
   }
 
@@ -269,27 +282,6 @@ export const useThreeViewport = (
     highlightFace(processedMesh, selectedFace.faceId)
   }
 
-  /**
-   * Refresh the selected face presentation after selection, mode changes, or color changes.
-   */
-  const syncSelectionPresentation = (): void => {
-    if (!state.currentModel) {
-      return
-    }
-
-    if (!faceInteractionState.value.selectedFace) {
-      clearHighlightAcrossModel()
-      return
-    }
-
-    if (faceInteractionState.value.manualColoringEnabled) {
-      applySelectedColorToSelection()
-      return
-    }
-
-    updateHighlightForSelection()
-  }
-
   const getSelectedColor = (): MorandiColorOption | null => {
     return morandiColors.find((color) => color.id === faceInteractionState.value.selectedColorId) ?? null
   }
@@ -313,6 +305,24 @@ export const useThreeViewport = (
     })
   }
 
+  const syncSelectionPresentation = (): void => {
+    if (!state.currentModel) {
+      return
+    }
+
+    if (!faceInteractionState.value.selectedFace) {
+      clearHighlightAcrossModel()
+      return
+    }
+
+    if (faceInteractionState.value.manualColoringEnabled) {
+      applySelectedColorToSelection()
+      return
+    }
+
+    updateHighlightForSelection()
+  }
+
   const separateSelectedFace = (): void => {
     const selectedFace = faceInteractionState.value.selectedFace
 
@@ -321,7 +331,6 @@ export const useThreeViewport = (
     }
 
     const separatedMesh = separateFace(state.currentModel, selectedFace)
-
     if (!separatedMesh) {
       return
     }
@@ -332,6 +341,7 @@ export const useThreeViewport = (
       meshName: separatedMesh.name,
       isSeparatedFace: true
     })
+
     syncSelectionPresentation()
   }
 
@@ -368,9 +378,7 @@ export const useThreeViewport = (
       return
     }
 
-    const triangleOffset = firstIntersection.faceIndex
-    const faceMapping = findFaceMappingByTriangleOffset(processedMesh, triangleOffset)
-
+    const faceMapping = findFaceMappingByTriangleOffset(processedMesh, firstIntersection.faceIndex)
     if (!faceMapping) {
       return
     }
@@ -456,11 +464,12 @@ export const useThreeViewport = (
         () => faceInteractionState.value.selectedColorId,
         () => faceInteractionState.value.autoColorRequestToken,
         () => faceInteractionState.value.separationRequestToken,
+        () => faceInteractionState.value.saveColorRequestToken,
         () => faceInteractionState.value.selectedFace?.faceId,
         () => faceInteractionState.value.manualColoringEnabled
       ],
       (
-        [selectedColorId, autoColorToken, separationToken, selectedFaceId, manualColoringEnabled],
+        [selectedColorId, autoColorToken, separationToken, saveColorToken, selectedFaceId, manualColoringEnabled],
         previousValues
       ) => {
         if (!state.currentModel) {
@@ -470,8 +479,9 @@ export const useThreeViewport = (
         const previousSelectedColorId = previousValues?.[0] ?? null
         const previousAutoColorToken = previousValues?.[1] ?? null
         const previousSeparationToken = previousValues?.[2] ?? null
-        const previousSelectedFaceId = previousValues?.[3] ?? null
-        const previousManualColoringEnabled = previousValues?.[4] ?? null
+        const previousSaveColorToken = previousValues?.[3] ?? null
+        const previousSelectedFaceId = previousValues?.[4] ?? null
+        const previousManualColoringEnabled = previousValues?.[5] ?? null
 
         if (autoColorToken !== previousAutoColorToken) {
           autoColorModel(state.currentModel)
@@ -480,6 +490,12 @@ export const useThreeViewport = (
 
         if (separationToken !== previousSeparationToken) {
           separateSelectedFace()
+          return
+        }
+
+        if (saveColorToken !== previousSaveColorToken) {
+          saveModelFaceColors(state.currentModel)
+          syncSelectionPresentation()
           return
         }
 

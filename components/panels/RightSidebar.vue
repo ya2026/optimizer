@@ -11,8 +11,10 @@ const {
   setManualColoringEnabled,
   setSelectedColorId,
   requestFaceSeparation,
-  requestAutoColor
+  requestAutoColor,
+  requestSaveColors
 } = useFaceInteractionState()
+
 const manualColoringEnabled = computed({
   get: () => state.value.manualColoringEnabled,
   set: (enabled: boolean) => {
@@ -22,6 +24,14 @@ const manualColoringEnabled = computed({
 
 const manualColoringStatusText = computed(() => {
   return manualColoringEnabled.value ? '已开启' : '已关闭'
+})
+
+const selectedFaceText = computed(() => {
+  if (!state.value.selectedFace) {
+    return '未选择任何面'
+  }
+
+  return `${state.value.selectedFace.meshName} / ${state.value.selectedFace.faceId}`
 })
 </script>
 
@@ -37,7 +47,9 @@ const manualColoringStatusText = computed(() => {
           <p class="toggle-card__status">
             {{ manualColoringStatusText }}
           </p>
-          <p class="toggle-card__hint">开启后点击模型面会直接改色并保留同色高亮；关闭后点击仅用于红色高亮选面</p>
+          <p class="toggle-card__hint">
+            开启后，点击模型面会直接应用当前颜色；关闭后，点击仅用于高亮选面。
+          </p>
         </div>
 
         <label class="switch">
@@ -52,7 +64,7 @@ const manualColoringStatusText = computed(() => {
       <div class="selection-summary">
         <p class="selection-summary__label">当前选中面</p>
         <p class="selection-summary__value">
-          {{ state.selectedFace ? `${state.selectedFace.meshName} / ${state.selectedFace.faceId}` : '未选择任何面' }}
+          {{ selectedFaceText }}
         </p>
       </div>
 
@@ -75,6 +87,14 @@ const manualColoringStatusText = computed(() => {
         @click="requestAutoColor"
       >
         整体自动配色
+      </button>
+
+      <button
+        type="button"
+        class="primary-button"
+        @click="requestSaveColors"
+      >
+        保存着色
       </button>
 
       <button
