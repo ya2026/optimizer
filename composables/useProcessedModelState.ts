@@ -8,6 +8,7 @@ export const useProcessedModelState = () => {
   }
 
   return {
+    mutableCurrentModel: currentModelState,
     currentModel: readonly(currentModelState),
     setCurrentModel
   }

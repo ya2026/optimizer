@@ -42,9 +42,18 @@ interface FaceTriangleRecord {
   indices: [number, number, number]
 }
 
-/**
- * Convert STEP mesh data into editable Three.js meshes while preserving original face topology ranges.
- */
+interface HighlightFaceOptions {
+  preserveMaterialColor?: boolean
+}
+
+interface MeshBuildFailure {
+  meshIndex: number
+  meshName: string
+  positionCount: number
+  indexCount: number
+  reason: string
+}
+
 export const useStepModelProcessor = () => {
   const { morandiColors } = useMorandiPalette()
 
@@ -52,14 +61,20 @@ export const useStepModelProcessor = () => {
     result: OcctStepReadResult,
     sourceName: string
   ): ProcessedStepModel => {
+<<<<<<< HEAD
     if (!result.success || !result.meshes.length) {
       throw new Error('STEP 文件无法转换为可渲染的网格数据。')
+=======
+    if (!result.meshes.length) {
+      throw new Error(`STEP 文件 ${sourceName} 未生成可渲染的网格数据。`)
+>>>>>>> dev
     }
 
     const group = new Group()
     group.name = sourceName
 
     const processedMeshes: ProcessedStepMesh[] = []
+    const meshBuildFailures: MeshBuildFailure[] = []
     const nodeToGroupMap = new Map<OcctNodeResult, Group>()
 
     const rootGroup = new Group()
@@ -89,6 +104,9 @@ export const useStepModelProcessor = () => {
         })
 
         if (!processedMesh) {
+          meshBuildFailures.push(
+            createMeshBuildFailure(sourceMesh, meshIndex, '节点树挂接阶段构建失败')
+          )
           continue
         }
 
@@ -97,10 +115,33 @@ export const useStepModelProcessor = () => {
       }
     })
 
+    if (!processedMeshes.length) {
+      result.meshes.forEach((sourceMesh, meshIndex) => {
+        const processedMesh = buildProcessedMesh({
+          sourceMesh,
+          meshIndex
+        })
+
+        if (!processedMesh) {
+          meshBuildFailures.push(
+            createMeshBuildFailure(sourceMesh, meshIndex, '根级兜底挂接阶段构建失败')
+          )
+          return
+        }
+
+        processedMeshes.push(processedMesh)
+        rootGroup.add(processedMesh.mesh)
+      })
+    }
+
     removeEmptyGroups(group)
 
     if (!processedMeshes.length) {
+<<<<<<< HEAD
       throw new Error('几何清理完成后，没有保留下有效网格数据。')
+=======
+      throw new Error(buildMeshProcessingFailureMessage(result, sourceName, meshBuildFailures))
+>>>>>>> dev
     }
 
     normalizeModelGeometry(processedMeshes)
@@ -133,8 +174,33 @@ export const useStepModelProcessor = () => {
     const cleanupResult = cleanupGeometry(geometry, sourceMesh.brep_faces ?? [], meshIndex)
 
     if (!cleanupResult) {
-      geometry.dispose()
-      return null
+      const fallbackResult = createFallbackGeometryResult(geometry, meshIndex)
+
+      if (!fallbackResult) {
+        geometry.dispose()
+        return null
+      }
+
+      const fallbackMaterials = createFaceMaterials(fallbackResult.faceMappings)
+      const fallbackMeshId = `mesh-${meshIndex}-${sourceMesh.name || 'unnamed'}`
+      const fallbackMesh = new Mesh(fallbackResult.geometry, fallbackMaterials)
+
+      fallbackMesh.name = sourceMesh.name || `StepMesh-${meshIndex}`
+      fallbackMesh.frustumCulled = true
+      fallbackMesh.castShadow = false
+      fallbackMesh.receiveShadow = true
+      fallbackMesh.scale.set(1, 1, 1)
+      fallbackMesh.userData.meshId = fallbackMeshId
+
+      return {
+        id: fallbackMeshId,
+        name: fallbackMesh.name,
+        geometry: fallbackResult.geometry,
+        mesh: fallbackMesh,
+        materials: fallbackMaterials,
+        faceMappings: fallbackResult.faceMappings,
+        isSeparatedFace: false
+      }
     }
 
     const materials = createFaceMaterials(cleanupResult.faceMappings)
@@ -178,9 +244,6 @@ export const useStepModelProcessor = () => {
     return geometry
   }
 
-  /**
-   * Remove invalid triangles and preserve the original STEP face-to-triangle mapping.
-   */
   const cleanupGeometry = (
     geometry: BufferGeometry,
     faceRanges: OcctFaceRange[],
@@ -227,7 +290,6 @@ export const useStepModelProcessor = () => {
     }
 
     if (!validIndices.length) {
-      geometry.dispose()
       return null
     }
 
@@ -241,6 +303,80 @@ export const useStepModelProcessor = () => {
       geometry,
       faceMappings
     }
+  }
+
+  const createFallbackGeometryResult = (
+    geometry: BufferGeometry,
+    meshIndex: number
+  ): GeometryCleanupResult | null => {
+    const indexAttribute = geometry.getIndex()
+
+    if (!indexAttribute || indexAttribute.count < 3) {
+      return null
+    }
+
+    const triangleCount = Math.floor(indexAttribute.count / 3)
+    if (!triangleCount) {
+      return null
+    }
+
+    geometry.deleteAttribute('normal')
+
+    const fallbackFaceMapping: StepFaceMapping = {
+      id: `mesh-${meshIndex}-face-0`,
+      faceIndex: 0,
+      triangleStart: 0,
+      triangleEnd: triangleCount - 1,
+      triangleIndices: Array.from({ length: triangleCount }, (_, triangleIndex) => triangleIndex),
+      indexStart: 0,
+      indexCount: triangleCount * 3,
+      color: null,
+      materialIndex: 0
+    }
+
+    rebuildGeometryGroups(geometry, [fallbackFaceMapping])
+
+    return {
+      geometry,
+      faceMappings: [fallbackFaceMapping]
+    }
+  }
+
+  const createMeshBuildFailure = (
+    sourceMesh: OcctMeshResult,
+    meshIndex: number,
+    reason: string
+  ): MeshBuildFailure => {
+    return {
+      meshIndex,
+      meshName: sourceMesh.name || `StepMesh-${meshIndex}`,
+      positionCount: Math.floor((sourceMesh.attributes.position.array?.length ?? 0) / 3),
+      indexCount: sourceMesh.index.array?.length ?? 0,
+      reason
+    }
+  }
+
+  const buildMeshProcessingFailureMessage = (
+    result: OcctStepReadResult,
+    sourceName: string,
+    failures: MeshBuildFailure[]
+  ): string => {
+    const rootMeshCount = result.root.meshes?.length ?? 0
+    const rootChildCount = result.root.children?.length ?? 0
+    const failureSummary = failures.length
+      ? failures
+          .slice(0, 5)
+          .map((failure) => {
+            return `mesh#${failure.meshIndex}(${failure.meshName}): position=${failure.positionCount}, index=${failure.indexCount}, reason=${failure.reason}`
+          })
+          .join(' | ')
+      : '未采集到 mesh 构建失败明细'
+
+    return [
+      `STEP 文件 ${sourceName} 导入失败：没有生成可用模型。`,
+      `ReadStepFile 返回 meshes=${result.meshes.length}，root.meshes=${rootMeshCount}，root.children=${rootChildCount}。`,
+      `失败明细：${failureSummary}`
+    ].join(' ')
   }
 
   const isFiniteVertex = (positionAttribute: BufferAttribute, vertexIndex: number): boolean => {
@@ -305,10 +441,14 @@ export const useStepModelProcessor = () => {
         faceIndex,
         triangleStart,
         triangleEnd,
+        triangleIndices: [...mappedTriangles],
         indexStart: triangleStart * 3,
         indexCount: mappedTriangles.length * 3,
+<<<<<<< HEAD
         // 导入后的模型默认统一显示为中性灰色。
         // 只有手动着色或自动配色后，才在映射数据中记录当前显示颜色。
+=======
+>>>>>>> dev
         color: null,
         materialIndex
       })
@@ -367,6 +507,19 @@ export const useStepModelProcessor = () => {
       emissiveIntensity: 1.45,
       roughness: 0.5,
       metalness: 0.04,
+      side: FrontSide
+    })
+  }
+
+  const createColorPreservingHighlightMaterial = (
+    baseMaterial: MeshStandardMaterial
+  ): MeshStandardMaterial => {
+    return new MeshStandardMaterial({
+      color: baseMaterial.color.clone(),
+      emissive: baseMaterial.color.clone(),
+      emissiveIntensity: 0.32,
+      roughness: Math.max(baseMaterial.roughness - 0.12, 0.2),
+      metalness: baseMaterial.metalness,
       side: FrontSide
     })
   }
@@ -558,7 +711,8 @@ export const useStepModelProcessor = () => {
 
   const highlightFace = (
     processedMesh: ProcessedStepMesh,
-    faceId: string
+    faceId: string,
+    options: HighlightFaceOptions = {}
   ): void => {
     clearTemporaryMaterials(processedMesh)
 
@@ -569,7 +723,9 @@ export const useStepModelProcessor = () => {
 
     const highlightMaterials = processedMesh.materials.map((material) => material.clone())
     highlightMaterials[mapping.materialIndex]?.dispose()
-    highlightMaterials[mapping.materialIndex] = createHighlightMaterial()
+    highlightMaterials[mapping.materialIndex] = options.preserveMaterialColor
+      ? createColorPreservingHighlightMaterial(processedMesh.materials[mapping.materialIndex])
+      : createHighlightMaterial()
     processedMesh.mesh.material = highlightMaterials
   }
 
@@ -601,6 +757,29 @@ export const useStepModelProcessor = () => {
         processedMesh.materials[mapping.materialIndex]?.dispose()
         processedMesh.materials[mapping.materialIndex] = createMorandiMaterial(colorOption)
         mapping.color = hexToRgbTuple(colorOption.hex)
+      })
+
+      resetMeshMaterials(processedMesh)
+    })
+  }
+
+  const applySavedFaceColors = (
+    model: ProcessedStepModel,
+    savedFaceColors: Record<string, [number, number, number]>
+  ): void => {
+    model.meshes.forEach((processedMesh) => {
+      clearTemporaryMaterials(processedMesh)
+
+      processedMesh.faceMappings.forEach((mapping) => {
+        const savedColor = savedFaceColors[mapping.id]
+
+        if (!savedColor) {
+          return
+        }
+
+        processedMesh.materials[mapping.materialIndex]?.dispose()
+        processedMesh.materials[mapping.materialIndex] = createStandardMaterial(savedColor)
+        mapping.color = [...savedColor]
       })
 
       resetMeshMaterials(processedMesh)
@@ -662,6 +841,7 @@ export const useStepModelProcessor = () => {
           id: `${selectedMapping.id}-separated`,
           triangleStart: 0,
           triangleEnd: detachedTriangles.length - 1,
+          triangleIndices: detachedTriangles.map((_, triangleIndex) => triangleIndex),
           indexStart: 0,
           indexCount: detachedTriangles.length * 3,
           materialIndex: 0
@@ -691,19 +871,18 @@ export const useStepModelProcessor = () => {
     const records: FaceTriangleRecord[] = []
 
     processedMesh.faceMappings.forEach((mapping) => {
-      const end = mapping.indexStart + mapping.indexCount
-
-      for (let indexCursor = mapping.indexStart; indexCursor < end; indexCursor += 3) {
+      mapping.triangleIndices.forEach((triangleOffset) => {
+        const indexCursor = triangleOffset * 3
         records.push({
           faceId: mapping.id,
-          triangleOffset: indexCursor / 3,
+          triangleOffset,
           indices: [
             indexAttribute.getX(indexCursor),
             indexAttribute.getX(indexCursor + 1),
             indexAttribute.getX(indexCursor + 2)
           ]
         })
-      }
+      })
     })
 
     return records
@@ -755,6 +934,7 @@ export const useStepModelProcessor = () => {
         ...mapping,
         triangleStart: runningTriangleIndex,
         triangleEnd: runningTriangleIndex + faceTriangles.length - 1,
+        triangleIndices: faceTriangles.map((_, triangleIndex) => runningTriangleIndex + triangleIndex),
         indexStart: runningTriangleIndex * 3,
         indexCount: faceTriangles.length * 3,
         materialIndex: nextFaceMappings.length
@@ -808,6 +988,7 @@ export const useStepModelProcessor = () => {
     resetMeshMaterials,
     applyColorToFace,
     autoColorModel,
+    applySavedFaceColors,
     separateFace
   }
 }

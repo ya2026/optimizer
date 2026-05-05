@@ -31,22 +31,40 @@ export const useStepImportState = () => {
 
   const registerFiles = (inputFiles: FileList | File[]): void => {
     const fileArray = Array.from(inputFiles).filter(isStepFile)
+    const existingFileIds = new Set(state.value.files.map((fileItem) => fileItem.id))
 
-    const nextItems: StepImportFileItem[] = fileArray.map((file) => ({
-      id: createFileId(file),
-      file,
-      name: file.name,
-      size: file.size,
-      status: 'idle',
-      errorMessage: null
-    }))
+    const nextItems: StepImportFileItem[] = fileArray
+      .filter((file) => !existingFileIds.has(createFileId(file)))
+      .map((file) => ({
+        id: createFileId(file),
+        file,
+        name: file.name,
+        size: file.size,
+        status: 'idle',
+        errorMessage: null
+      }))
 
-    state.value.files = nextItems
-    state.value.activeFileId = nextItems[0]?.id ?? null
+    if (!nextItems.length) {
+      return
+    }
+
+    state.value.files = [...state.value.files, ...nextItems]
+    state.value.activeFileId = nextItems[nextItems.length - 1].id
   }
 
   const setActiveFile = (fileId: string): void => {
     state.value.activeFileId = fileId
+  }
+
+  const removeFile = (fileId: string): void => {
+    const nextFiles = state.value.files.filter((fileItem) => fileItem.id !== fileId)
+    state.value.files = nextFiles
+
+    if (state.value.activeFileId !== fileId) {
+      return
+    }
+
+    state.value.activeFileId = nextFiles[0]?.id ?? null
   }
 
   const updateFileStatus = (
@@ -72,6 +90,7 @@ export const useStepImportState = () => {
     state: readonly(state),
     activeFile,
     registerFiles,
+    removeFile,
     setActiveFile,
     updateFileStatus
   }

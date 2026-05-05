@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useProcessedModelState } from '~/composables/useProcessedModelState'
 import { useThreeViewport } from '~/composables/useThreeViewport'
-import { useStepImportState } from '~/composables/useStepImportState'
 
 const canvasContainerRef = ref<HTMLDivElement | null>(null)
-const { activeFile } = useStepImportState()
+const { currentModel } = useProcessedModelState()
+
+const currentViewLabel = computed(() => {
+  return currentModel.value
+    ? `当前查看：${currentModel.value.sourceName}`
+    : 'Three.js 运行环境已就绪'
+})
 
 const {
   initializeViewport,
-  disposeViewport
+  disposeViewport,
+  setFrontView
 } = useThreeViewport(canvasContainerRef)
 
 onMounted(() => {
@@ -25,19 +32,36 @@ onBeforeUnmount(() => {
     ref="canvasContainerRef"
     class="viewer-canvas"
   >
+    <button
+      type="button"
+      class="viewer-canvas__view-button"
+      aria-label="正视图"
+      title="正视图"
+      @click="setFrontView"
+    >
+      ◎
+    </button>
+
     <div class="viewer-canvas__badge">
       <span class="viewer-canvas__badge-dot" />
+<<<<<<< HEAD
       {{ activeFile ? `当前查看：${activeFile.name}` : 'Three.js 运行环境已就绪' }}
+=======
+      {{ currentViewLabel }}
+>>>>>>> dev
     </div>
 
     <div
-      v-if="!activeFile"
+      v-if="!currentModel"
       class="viewer-canvas__empty"
     >
       <p class="viewer-canvas__empty-title">导入 STEP 文件后开始预览</p>
+<<<<<<< HEAD
       <p class="viewer-canvas__empty-hint">
         当前已完成浏览器端 STEP 解析、面映射、几何清理、归一化与渲染管线初始化。
       </p>
+=======
+>>>>>>> dev
     </div>
   </div>
 </template>

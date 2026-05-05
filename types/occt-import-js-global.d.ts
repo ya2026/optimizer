@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import type { OcctStepReadResult } from '~/types/step-model'
 
 interface OcctModule {
@@ -9,6 +10,13 @@ declare global {
     occtimportjs?: (config: {
       locateFile: (fileName: string) => string
     }) => Promise<OcctModule>
+=======
+declare global {
+  interface Window {
+    occtimportjs?: (config?: {
+      locateFile?: (fileName: string) => string
+    }) => Promise<unknown>
+>>>>>>> dev
   }
 }
 

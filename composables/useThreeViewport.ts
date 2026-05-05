@@ -7,19 +7,22 @@ import {
   GridHelper,
   Group,
   MeshStandardMaterial,
+  MOUSE,
   PerspectiveCamera,
   Raycaster,
   Scene,
   SRGBColorSpace,
+  TOUCH,
   Vector2,
   WebGLRenderer
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { useFaceColorPersistence } from '~/composables/useFaceColorPersistence'
 import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
 import { useMorandiPalette } from '~/composables/useMorandiPalette'
 import { useProcessedModelState } from '~/composables/useProcessedModelState'
-import { useStepImportState } from '~/composables/useStepImportState'
 import { useStepImporter } from '~/composables/useStepImporter'
+import { useStepImportState } from '~/composables/useStepImportState'
 import { useStepModelProcessor } from '~/composables/useStepModelProcessor'
 import type {
   MorandiColorOption,
@@ -40,11 +43,9 @@ interface ThreeViewportState {
   stopWatchingFaceState: (() => void) | null
   raycaster: Raycaster
   pointer: Vector2
+  importRequestToken: number
 }
 
-/**
- * Own the Three.js scene lifecycle and connect it to face picking, coloring, and separation.
- */
 export const useThreeViewport = (
   containerRef: Ref<HTMLDivElement | null>
 ) => {
@@ -54,16 +55,16 @@ export const useThreeViewport = (
     state: faceInteractionState,
     setSelectedFace
   } = useFaceInteractionState()
+  const { saveModelFaceColors, loadSavedFaceColors } = useFaceColorPersistence()
   const { morandiColors } = useMorandiPalette()
   const { importStepFile } = useStepImporter()
   const {
     fitCameraToModel,
-    findFaceMapping,
     highlightFace,
     clearTemporaryMaterials,
-    resetMeshMaterials,
     applyColorToFace,
     autoColorModel,
+    applySavedFaceColors,
     separateFace
   } = useStepModelProcessor()
 
@@ -78,7 +79,8 @@ export const useThreeViewport = (
     stopWatchingImportState: null,
     stopWatchingFaceState: null,
     raycaster: new Raycaster(),
-    pointer: new Vector2()
+    pointer: new Vector2(),
+    importRequestToken: 0
   }
 
   const resizeViewport = (): void => {
@@ -93,7 +95,6 @@ export const useThreeViewport = (
 
     state.camera.aspect = width / height
     state.camera.updateProjectionMatrix()
-
     state.renderer.setSize(width, height, false)
     state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   }
@@ -114,10 +115,8 @@ export const useThreeViewport = (
   const createHelperGroup = (): Group => {
     const helperGroup = new Group()
     helperGroup.name = 'ViewportHelpers'
-
     helperGroup.add(new GridHelper(1.2, 12, 0x8aa0a5, 0xc9d4d7))
     helperGroup.add(new AxesHelper(0.6))
-
     return helperGroup
   }
 
@@ -141,19 +140,35 @@ export const useThreeViewport = (
     }
 
     const { center, radius } = fitCameraToModel(model)
-    const distance = Math.max(radius * 2.6, 1.6)
+    const distance = Math.max(radius * 1.95, 1.15)
 
     state.controls.target.copy(center)
     state.camera.position.set(
-      center.x + distance,
-      center.y + distance * 0.7,
-      center.z + distance
+      center.x + distance * 0.92,
+      center.y + distance * 0.5,
+      center.z + distance * 0.92
     )
     state.camera.near = 0.01
     state.camera.far = Math.max(distance * 20, 100)
     state.camera.updateProjectionMatrix()
-    state.controls.minDistance = Math.max(radius * 0.2, 0.1)
-    state.controls.maxDistance = Math.max(radius * 12, 25)
+    state.controls.minDistance = Math.max(radius * 0.18, 0.08)
+    state.controls.maxDistance = Math.max(radius * 10, 18)
+    state.controls.update()
+  }
+
+  const setFrontView = (): void => {
+    if (!state.currentModel || !state.camera || !state.controls) {
+      return
+    }
+
+    const { center, radius } = fitCameraToModel(state.currentModel)
+    const distance = Math.max(radius * 1.95, 1.15)
+
+    state.controls.target.copy(center)
+    state.camera.position.set(center.x, center.y, center.z + distance)
+    state.camera.up.set(0, 1, 0)
+    state.camera.lookAt(center)
+    state.camera.updateProjectionMatrix()
     state.controls.update()
   }
 
@@ -195,21 +210,39 @@ export const useThreeViewport = (
       return
     }
 
+    state.importRequestToken += 1
+    const currentRequestToken = state.importRequestToken
+
     updateFileStatus(fileItem.id, 'processing')
 
     try {
       const processedModel = await importStepFile(fileItem.file)
+
+      if (currentRequestToken !== state.importRequestToken) {
+        processedModel.meshes.forEach((processedMesh) => {
+          processedMesh.geometry.dispose()
+          processedMesh.materials.forEach((material) => material.dispose())
+        })
+        return
+      }
 
       disposeCurrentModel()
       state.scene.add(processedModel.group)
       state.currentModel = processedModel
       setCurrentModel(processedModel)
 
+      autoColorModel(processedModel)
+      applySavedFaceColors(processedModel, loadSavedFaceColors(processedModel.sourceName))
       frameModel(processedModel)
       updateFileStatus(fileItem.id, 'success')
       setSelectedFace(null)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'STEP import failed.'
+      if (currentRequestToken !== state.importRequestToken) {
+        return
+      }
+
+      disposeCurrentModel()
+      const message = error instanceof Error ? error.message : 'STEP 文件导入失败。'
       updateFileStatus(fileItem.id, 'error', message)
     }
   }
@@ -223,8 +256,7 @@ export const useThreeViewport = (
     triangleOffset: number
   ) => {
     return processedMesh.faceMappings.find((mapping) => (
-      triangleOffset >= mapping.triangleStart &&
-      triangleOffset <= mapping.triangleEnd
+      mapping.triangleIndices.includes(triangleOffset)
     )) ?? null
   }
 
@@ -268,7 +300,27 @@ export const useThreeViewport = (
     }
 
     applyColorToFace(processedMesh, selectedFace.faceId, selectedColor)
-    highlightFace(processedMesh, selectedFace.faceId)
+    highlightFace(processedMesh, selectedFace.faceId, {
+      preserveMaterialColor: true
+    })
+  }
+
+  const syncSelectionPresentation = (): void => {
+    if (!state.currentModel) {
+      return
+    }
+
+    if (!faceInteractionState.value.selectedFace) {
+      clearHighlightAcrossModel()
+      return
+    }
+
+    if (faceInteractionState.value.manualColoringEnabled) {
+      applySelectedColorToSelection()
+      return
+    }
+
+    updateHighlightForSelection()
   }
 
   const separateSelectedFace = (): void => {
@@ -279,7 +331,6 @@ export const useThreeViewport = (
     }
 
     const separatedMesh = separateFace(state.currentModel, selectedFace)
-
     if (!separatedMesh) {
       return
     }
@@ -291,7 +342,7 @@ export const useThreeViewport = (
       isSeparatedFace: true
     })
 
-    updateHighlightForSelection()
+    syncSelectionPresentation()
   }
 
   const handleCanvasClick = (event: MouseEvent): void => {
@@ -327,9 +378,7 @@ export const useThreeViewport = (
       return
     }
 
-    const triangleOffset = firstIntersection.faceIndex
-    const faceMapping = findFaceMappingByTriangleOffset(processedMesh, triangleOffset)
-
+    const faceMapping = findFaceMappingByTriangleOffset(processedMesh, firstIntersection.faceIndex)
     if (!faceMapping) {
       return
     }
@@ -342,11 +391,7 @@ export const useThreeViewport = (
     }
 
     setSelectedFace(nextSelection)
-    updateHighlightForSelection()
-
-    if (faceInteractionState.value.manualColoringEnabled) {
-      applySelectedColorToSelection()
-    }
+    syncSelectionPresentation()
   }
 
   const initializeViewport = (): void => {
@@ -377,6 +422,15 @@ export const useThreeViewport = (
     controls.enablePan = true
     controls.enableZoom = true
     controls.enableRotate = true
+    controls.mouseButtons = {
+      LEFT: MOUSE.ROTATE,
+      MIDDLE: MOUSE.DOLLY,
+      RIGHT: MOUSE.PAN
+    }
+    controls.touches = {
+      ONE: TOUCH.ROTATE,
+      TWO: TOUCH.DOLLY_PAN
+    }
     controls.target.set(0, 0, 0)
     controls.update()
 
@@ -410,24 +464,47 @@ export const useThreeViewport = (
         () => faceInteractionState.value.selectedColorId,
         () => faceInteractionState.value.autoColorRequestToken,
         () => faceInteractionState.value.separationRequestToken,
+        () => faceInteractionState.value.saveColorRequestToken,
         () => faceInteractionState.value.selectedFace?.faceId,
         () => faceInteractionState.value.manualColoringEnabled
       ],
-      ([, autoColorToken, separationToken], previousValues) => {
+      (
+        [selectedColorId, autoColorToken, separationToken, saveColorToken, selectedFaceId, manualColoringEnabled],
+        previousValues
+      ) => {
         if (!state.currentModel) {
           return
         }
 
+        const previousSelectedColorId = previousValues?.[0] ?? null
         const previousAutoColorToken = previousValues?.[1] ?? null
         const previousSeparationToken = previousValues?.[2] ?? null
+        const previousSaveColorToken = previousValues?.[3] ?? null
+        const previousSelectedFaceId = previousValues?.[4] ?? null
+        const previousManualColoringEnabled = previousValues?.[5] ?? null
 
         if (autoColorToken !== previousAutoColorToken) {
           autoColorModel(state.currentModel)
-          updateHighlightForSelection()
+          syncSelectionPresentation()
         }
 
         if (separationToken !== previousSeparationToken) {
           separateSelectedFace()
+          return
+        }
+
+        if (saveColorToken !== previousSaveColorToken) {
+          saveModelFaceColors(state.currentModel)
+          syncSelectionPresentation()
+          return
+        }
+
+        const selectionChanged = selectedFaceId !== previousSelectedFaceId
+        const modeChanged = manualColoringEnabled !== previousManualColoringEnabled
+        const colorChanged = selectedColorId !== previousSelectedColorId
+
+        if (selectionChanged || modeChanged || (colorChanged && manualColoringEnabled)) {
+          syncSelectionPresentation()
         }
       }
     )
@@ -473,6 +550,7 @@ export const useThreeViewport = (
 
   return {
     initializeViewport,
-    disposeViewport
+    disposeViewport,
+    setFrontView
   }
 }

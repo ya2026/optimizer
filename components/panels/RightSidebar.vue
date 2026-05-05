@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import PanelSection from '~/components/panels/PanelSection.vue'
 import { useMorandiPalette } from '~/composables/useMorandiPalette'
 import { useFaceInteractionState } from '~/composables/useFaceInteractionState'
-import { useModelExport } from '~/composables/useModelExport'
 
 const { morandiColors } = useMorandiPalette()
 const {
@@ -11,17 +11,34 @@ const {
   setManualColoringEnabled,
   setSelectedColorId,
   requestFaceSeparation,
-  requestAutoColor
+  requestAutoColor,
+  requestSaveColors
 } = useFaceInteractionState()
-const {
-  exportCurrentModelAsGlb,
-  hasExportableModel
-} = useModelExport()
+
+const manualColoringEnabled = computed({
+  get: () => state.value.manualColoringEnabled,
+  set: (enabled: boolean) => {
+    setManualColoringEnabled(enabled)
+  }
+})
+
+const manualColoringStatusText = computed(() => {
+  return manualColoringEnabled.value ? '已开启' : '已关闭'
+})
+
+const selectedFaceText = computed(() => {
+  if (!state.value.selectedFace) {
+    return '未选择任何面'
+  }
+
+  return `${state.value.selectedFace.meshName} / ${state.value.selectedFace.faceId}`
+})
 </script>
 
 <template>
-  <aside class="sidebar-panel">
+  <aside class="sidebar-panel sidebar-panel--right">
     <PanelSection
+<<<<<<< HEAD
       title="手动着色"
       description="选择一个莫兰迪颜色后，点击视口中的 STEP 面即可着色，当前选中面会保持红色高亮。"
     >
@@ -29,13 +46,26 @@ const {
         <div>
           <p class="toggle-card__label">手动着色模式</p>
           <p class="toggle-card__hint">开启后可在保留选面与高亮能力的同时，点击面直接着色</p>
+=======
+      class="sidebar-panel__stretch"
+      title="手动着色"
+    >
+      <div class="toggle-card">
+        <div class="toggle-card__content">
+          <p class="toggle-card__label">手动着色模式</p>
+          <p class="toggle-card__status">
+            {{ manualColoringStatusText }}
+          </p>
+          <p class="toggle-card__hint">
+            开启后，点击模型面会直接应用当前颜色；关闭后，点击仅用于高亮选面。
+          </p>
+>>>>>>> dev
         </div>
 
         <label class="switch">
           <input
-            :checked="state.manualColoringEnabled"
+            v-model="manualColoringEnabled"
             type="checkbox"
-            @change="setManualColoringEnabled(($event.target as HTMLInputElement).checked)"
           >
           <span class="switch__slider" />
         </label>
@@ -44,7 +74,11 @@ const {
       <div class="selection-summary">
         <p class="selection-summary__label">当前选中面</p>
         <p class="selection-summary__value">
+<<<<<<< HEAD
           {{ state.selectedFace ? `${state.selectedFace.meshName} / ${state.selectedFace.faceId}` : '未选择任何面' }}
+=======
+          {{ selectedFaceText }}
+>>>>>>> dev
         </p>
       </div>
 
@@ -67,6 +101,17 @@ const {
         @click="requestAutoColor"
       >
         整体自动配色
+<<<<<<< HEAD
+=======
+      </button>
+
+      <button
+        type="button"
+        class="primary-button"
+        @click="requestSaveColors"
+      >
+        保存着色
+>>>>>>> dev
       </button>
 
       <button
@@ -78,6 +123,7 @@ const {
         分离当前选中面
       </button>
     </PanelSection>
+<<<<<<< HEAD
 
     <PanelSection
       title="导出"
@@ -94,5 +140,7 @@ const {
         </button>
       </div>
     </PanelSection>
+=======
+>>>>>>> dev
   </aside>
 </template>
