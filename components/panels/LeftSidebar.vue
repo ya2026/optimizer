@@ -67,7 +67,7 @@ const onRemoveFile = (fileId: string): void => {
           @click="openFilePicker"
         >
           <span class="action-card__title">导入 STEP 文件</span>
-          <span class="action-card__hint">导入一个或多个 STEP 文件</span>
+          <span class="action-card__hint">可追加导入多个 STEP 文件</span>
         </button>
       </div>
 
