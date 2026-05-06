@@ -7,10 +7,8 @@ import { useMorandiPalette } from '~/composables/useMorandiPalette'
 const { morandiColors } = useMorandiPalette()
 const {
   state,
-  canSeparateSelectedFace,
   setManualColoringEnabled,
   setSelectedColorId,
-  requestFaceSeparation,
   requestAutoColor,
   requestSaveColors
 } = useFaceInteractionState()
@@ -91,15 +89,6 @@ const selectedFaceText = computed(() => {
         @click="requestSaveColors"
       >
         保存着色
-      </button>
-
-      <button
-        type="button"
-        class="primary-button primary-button--secondary"
-        :disabled="!canSeparateSelectedFace"
-        @click="requestFaceSeparation"
-      >
-        分离当前选中面
       </button>
     </PanelSection>
   </aside>
