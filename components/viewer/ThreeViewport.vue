@@ -35,11 +35,25 @@ onBeforeUnmount(() => {
     <button
       type="button"
       class="viewer-canvas__view-button"
-      aria-label="正视图"
-      title="正视图"
+      aria-label="切换到正视图"
+      title="切换到正视图"
       @click="setFrontView"
     >
-      正
+      <svg
+        class="viewer-canvas__view-icon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <rect
+          x="5"
+          y="6"
+          width="14"
+          height="12"
+          rx="2.5"
+        />
+        <path d="M9 10h6" />
+        <path d="M9 14h6" />
+      </svg>
     </button>
 
     <div class="viewer-canvas__badge">

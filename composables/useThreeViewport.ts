@@ -14,6 +14,7 @@ import {
   SRGBColorSpace,
   TOUCH,
   Vector2,
+  Vector3,
   WebGLRenderer
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -30,6 +31,9 @@ import type {
   ProcessedStepModel,
   SelectedStepFace
 } from '~/types/step-model'
+
+const DEFAULT_VIEW_DIRECTION = new Vector3(0.92, 0.5, 0.92).normalize()
+const FRONT_VIEW_DIRECTION = new Vector3(0, 0, 1)
 
 interface ThreeViewportState {
   scene: Scene | null
@@ -143,10 +147,8 @@ export const useThreeViewport = (
     const distance = Math.max(radius * 1.95, 1.15)
 
     state.controls.target.copy(center)
-    state.camera.position.set(
-      center.x + distance * 0.92,
-      center.y + distance * 0.5,
-      center.z + distance * 0.92
+    state.camera.position.copy(
+      center.clone().add(DEFAULT_VIEW_DIRECTION.clone().multiplyScalar(distance))
     )
     state.camera.near = 0.01
     state.camera.far = Math.max(distance * 20, 100)
@@ -165,7 +167,9 @@ export const useThreeViewport = (
     const distance = Math.max(radius * 1.95, 1.15)
 
     state.controls.target.copy(center)
-    state.camera.position.set(center.x, center.y, center.z + distance)
+    state.camera.position.copy(
+      center.clone().add(FRONT_VIEW_DIRECTION.clone().multiplyScalar(distance))
+    )
     state.camera.up.set(0, 1, 0)
     state.camera.lookAt(center)
     state.camera.updateProjectionMatrix()
