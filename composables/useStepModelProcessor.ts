@@ -61,13 +61,8 @@ export const useStepModelProcessor = () => {
     result: OcctStepReadResult,
     sourceName: string
   ): ProcessedStepModel => {
-<<<<<<< HEAD
-    if (!result.success || !result.meshes.length) {
-      throw new Error('STEP 文件无法转换为可渲染的网格数据。')
-=======
     if (!result.meshes.length) {
       throw new Error(`STEP 文件 ${sourceName} 未生成可渲染的网格数据。`)
->>>>>>> dev
     }
 
     const group = new Group()
@@ -137,11 +132,7 @@ export const useStepModelProcessor = () => {
     removeEmptyGroups(group)
 
     if (!processedMeshes.length) {
-<<<<<<< HEAD
-      throw new Error('几何清理完成后，没有保留下有效网格数据。')
-=======
       throw new Error(buildMeshProcessingFailureMessage(result, sourceName, meshBuildFailures))
->>>>>>> dev
     }
 
     normalizeModelGeometry(processedMeshes)
@@ -444,11 +435,6 @@ export const useStepModelProcessor = () => {
         triangleIndices: [...mappedTriangles],
         indexStart: triangleStart * 3,
         indexCount: mappedTriangles.length * 3,
-<<<<<<< HEAD
-        // 导入后的模型默认统一显示为中性灰色。
-        // 只有手动着色或自动配色后，才在映射数据中记录当前显示颜色。
-=======
->>>>>>> dev
         color: null,
         materialIndex
       })

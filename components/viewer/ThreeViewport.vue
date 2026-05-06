@@ -39,16 +39,12 @@ onBeforeUnmount(() => {
       title="正视图"
       @click="setFrontView"
     >
-      ◎
+      正
     </button>
 
     <div class="viewer-canvas__badge">
       <span class="viewer-canvas__badge-dot" />
-<<<<<<< HEAD
-      {{ activeFile ? `当前查看：${activeFile.name}` : 'Three.js 运行环境已就绪' }}
-=======
       {{ currentViewLabel }}
->>>>>>> dev
     </div>
 
     <div
@@ -56,12 +52,9 @@ onBeforeUnmount(() => {
       class="viewer-canvas__empty"
     >
       <p class="viewer-canvas__empty-title">导入 STEP 文件后开始预览</p>
-<<<<<<< HEAD
       <p class="viewer-canvas__empty-hint">
-        当前已完成浏览器端 STEP 解析、面映射、几何清理、归一化与渲染管线初始化。
+        当前已完成浏览器端 STEP 解析、面映射、几何清理、归一化与渲染环境初始化。
       </p>
-=======
->>>>>>> dev
     </div>
   </div>
 </template>

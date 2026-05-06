@@ -12,18 +12,11 @@ interface FaceInteractionState {
 export const useFaceInteractionState = () => {
   const state = useState<FaceInteractionState>('face-interaction-state', () => ({
     manualColoringEnabled: true,
-<<<<<<< HEAD
-    selectedColorId: 'ash-rose',
-    selectedFace: null,
-    separationRequestToken: 0,
-    autoColorRequestToken: 0
-=======
     selectedColorId: 'spectrum-red',
     selectedFace: null,
     separationRequestToken: 0,
     autoColorRequestToken: 0,
     saveColorRequestToken: 0
->>>>>>> dev
   }))
 
   const setManualColoringEnabled = (enabled: boolean): void => {

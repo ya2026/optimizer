@@ -1,4 +1,4 @@
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { Object3D } from 'three'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { useFbxExport } from '~/composables/useFbxExport'
@@ -10,9 +10,6 @@ import type { ProcessedStepMesh, ProcessedStepModel } from '~/types/step-model'
 
 type ExportFormat = 'glb' | 'fbx'
 
-/**
- * Export the full processed scene model in browser-friendly 3D file formats.
- */
 export const useModelExport = () => {
   const { currentModel } = useProcessedModelState()
   const { state: importState } = useStepImportState()
@@ -69,7 +66,6 @@ export const useModelExport = () => {
           await exportProcessedModelAsFbx(processedModel, exportName)
         }
 
-        // Small delay helps browser download handling during multiple downloads.
         await waitForNextDownload()
       }
     } finally {

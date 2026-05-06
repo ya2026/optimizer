@@ -46,9 +46,6 @@ const loadOcctScript = async (): Promise<void> => {
   await occtScriptPromise
 }
 
-/**
- * Lazily initialize the OpenCascade WASM module in the browser.
- */
 export const useOcctLoader = () => {
   const loadOcct = async (): Promise<OcctModule> => {
     if (!import.meta.client) {

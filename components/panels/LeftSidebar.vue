@@ -18,28 +18,19 @@ const {
   setActiveFile
 } = useStepImportState()
 
-<<<<<<< HEAD
-=======
 const shouldEnableFileListScroll = computed(() => state.value.files.length >= 2)
 
->>>>>>> dev
 const statusLabelMap = {
   idle: '待处理',
   processing: '处理中',
   success: '已完成',
-<<<<<<< HEAD
-  error: '失败'
+  error: '导入失败'
 } as const
 
 const getStatusLabel = (status: StepImportFileItem['status']): string => {
   return statusLabelMap[status]
 }
 
-=======
-  error: '导入失败'
-} as const
-
->>>>>>> dev
 const openDirectoryPicker = (): void => {
   directoryInputRef.value?.click()
 }
@@ -65,16 +56,8 @@ const onRemoveFile = (fileId: string): void => {
 </script>
 
 <template>
-<<<<<<< HEAD
-  <aside class="sidebar-panel">
-    <PanelSection
-      title="文件操作"
-      description="提供本地文件夹选择、STEP 文件导入以及批量模型管理入口。"
-    >
-=======
   <aside class="sidebar-panel sidebar-panel--left">
-    <PanelSection title="文件操作">
->>>>>>> dev
+    <PanelSection title="文件操作区">
       <div class="action-card-list">
         <button
           type="button"
@@ -82,7 +65,7 @@ const onRemoveFile = (fileId: string): void => {
           @click="openDirectoryPicker"
         >
           <span class="action-card__title">选择本地文件夹</span>
-          <span class="action-card__hint">选择包含 STEP 文件的本地目录</span>
+          <span class="action-card__hint">批量读取文件夹中的 STEP 文件</span>
         </button>
 
         <button
@@ -91,11 +74,7 @@ const onRemoveFile = (fileId: string): void => {
           @click="openFilePicker"
         >
           <span class="action-card__title">导入 STEP 文件</span>
-<<<<<<< HEAD
-          <span class="action-card__hint">导入一个或多个 `.step` 或 `.stp` 文件</span>
-=======
           <span class="action-card__hint">可追加导入多个 STEP 文件</span>
->>>>>>> dev
         </button>
       </div>
 
@@ -120,13 +99,8 @@ const onRemoveFile = (fileId: string): void => {
     </PanelSection>
 
     <PanelSection
-<<<<<<< HEAD
-      title="模型文件列表"
-      description="这里会展示已导入的 STEP 文件，点击后会在中间视口中完成处理并显示。"
-=======
       class="sidebar-panel__stretch"
       title="模型文件列表"
->>>>>>> dev
     >
       <div class="file-list-container">
         <div
@@ -146,9 +120,9 @@ const onRemoveFile = (fileId: string): void => {
                 <span
                   class="file-list__meta"
                   :class="{ 'file-list__meta--error': fileItem.status === 'error' }"
-                  :title="fileItem.errorMessage ?? statusLabelMap[fileItem.status]"
+                  :title="fileItem.errorMessage ?? getStatusLabel(fileItem.status)"
                 >
-                  {{ fileItem.errorMessage ? statusLabelMap.error : statusLabelMap[fileItem.status] }}
+                  {{ fileItem.errorMessage ? statusLabelMap.error : getStatusLabel(fileItem.status) }}
                 </span>
               </div>
 
@@ -169,28 +143,11 @@ const onRemoveFile = (fileId: string): void => {
               v-if="!state.files.length"
               class="file-list__empty"
             >
-<<<<<<< HEAD
-              {{ getStatusLabel(fileItem.status) }}
-            </span>
-          </div>
-
-          <span class="file-list__tag">STEP</span>
-        </li>
-
-        <li
-          v-if="!state.files.length"
-          class="file-list__empty"
-        >
-          暂未选择 STEP 文件。
-        </li>
-      </ul>
-=======
-              暂未选择 STEP 文件。
+              暂无已导入的 STEP 文件
             </li>
           </ul>
         </div>
       </div>
->>>>>>> dev
     </PanelSection>
 
     <ExportPanel />

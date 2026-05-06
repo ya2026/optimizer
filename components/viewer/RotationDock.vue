@@ -11,12 +11,8 @@ const {
 <template>
   <section class="rotation-dock">
     <div class="rotation-dock__header">
-      <h3 class="rotation-dock__title">
-        模型旋转
-      </h3>
-      <p class="rotation-dock__description">
-        沿 X、Y、Z 轴分别旋转正负 90 度
-      </p>
+      <h3 class="rotation-dock__title">模型旋转</h3>
+      <p class="rotation-dock__description">沿 X、Y、Z 轴分别旋转正负 90 度</p>
     </div>
 
     <div class="rotation-dock__angles">

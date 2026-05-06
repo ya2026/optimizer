@@ -46,7 +46,7 @@ const IMPORT_ATTEMPTS: ImportAttemptConfig[] = [
     label: 'default-null',
     params: null
   }
-] as const
+]
 
 export const useStepImporter = () => {
   const { loadOcct } = useOcctLoader()
@@ -62,10 +62,6 @@ export const useStepImporter = () => {
       exception?: string
     }) | null = null
 
-<<<<<<< HEAD
-    if (!result.success) {
-      throw new Error(`STEP 文件解析失败：${file.name}`)
-=======
     for (const attempt of IMPORT_ATTEMPTS) {
       const result = occt.ReadStepFile(fileBuffer, attempt.params) as OcctStepReadResult & {
         error?: string
@@ -88,7 +84,6 @@ export const useStepImporter = () => {
       }
 
       lastFailureResult = result
->>>>>>> dev
     }
 
     throw new Error(buildStepImportErrorMessage(file.name, lastFailureResult, attemptDiagnostics))
@@ -120,14 +115,14 @@ const buildStepImportErrorMessage = (
   const details = result ? extractOcctErrorText(result) : null
   const attemptSummary = attemptDiagnostics
     .map((attempt) => {
-      const suffix = attempt.errorText ? `, error=${attempt.errorText}` : ''
+      const suffix = attempt.errorText ? `，error=${attempt.errorText}` : ''
       return `${attempt.label}: success=${attempt.success}, meshes=${attempt.meshCount}${suffix}`
     })
     .join(' | ')
 
   if (details) {
-    return `STEP 文件解析失败：${fileName}。${details}。重试结果：${attemptSummary}`
+    return `STEP 文件解析失败：${fileName}。${details}。尝试记录：${attemptSummary}`
   }
 
-  return `STEP 文件解析失败：${fileName}。所有导入策略都没有生成可用 mesh。重试结果：${attemptSummary}`
+  return `STEP 文件解析失败：${fileName}。所有参数组合均未生成可渲染 mesh。尝试记录：${attemptSummary}`
 }
