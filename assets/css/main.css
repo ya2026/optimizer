@@ -28,11 +28,12 @@
 html,
 body,
 #__nuxt {
-  min-height: 100%;
+  height: 100%;
 }
 
 body {
   margin: 0;
+  overflow: hidden;
   color: var(--color-text);
   background:
     radial-gradient(circle at top left, rgba(47, 107, 115, 0.18), transparent 28%),
@@ -51,8 +52,9 @@ button {
 }
 
 .page-shell {
-  min-height: 100vh;
+  height: 100dvh;
   padding: 18px;
+  overflow: hidden;
 }
 
 .app-header {
@@ -93,12 +95,16 @@ button {
   display: grid;
   grid-template-columns: minmax(240px, 280px) minmax(0, 1.25fr) minmax(240px, 280px);
   gap: var(--layout-gap);
-  min-height: calc(100vh - 18px * 2 - var(--header-height) - 16px);
+  height: calc(100dvh - 18px * 2 - var(--header-height) - 16px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar-panel,
 .viewer-panel {
-  min-height: 100%;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .sidebar-panel,
@@ -252,21 +258,22 @@ button {
 }
 
 .file-list-container {
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 420px;
+  height: 420px;
+  min-height: 420px;
+  max-height: 420px;
   overflow: hidden;
 }
 
 .file-list-scroll {
+  height: 100%;
   min-height: 0;
-  overflow-y: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   padding-right: 6px;
 }
 
 .file-list-scroll--scrollable {
-  max-height: 272px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
   padding-top: 6px;
 }
 
@@ -380,7 +387,8 @@ button {
 .viewer-canvas {
   position: relative;
   flex: 1;
-  min-height: 620px;
+  min-height: 0;
+  height: 100%;
   border: 1px dashed rgba(47, 107, 115, 0.35);
   border-radius: calc(var(--radius-xl) - 4px);
   background:
@@ -759,10 +767,6 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .viewer-canvas {
-    min-height: 560px;
-  }
-
   .rotation-dock {
     width: min(250px, calc(100% - 32px));
   }
@@ -770,7 +774,9 @@ button {
 
 @media (max-width: 768px) {
   .page-shell {
+    height: auto;
     padding: 16px;
+    overflow: visible;
   }
 
   .app-header {
@@ -788,7 +794,8 @@ button {
 
   .workspace-layout {
     grid-template-columns: 1fr;
-    min-height: auto;
+    height: auto;
+    overflow: visible;
   }
 
   .workspace-feature-grid {
@@ -801,6 +808,7 @@ button {
 
   .viewer-canvas {
     min-height: 460px;
+    height: 460px;
   }
 
   .rotation-dock {
