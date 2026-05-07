@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import ExportPanel from '~/components/panels/ExportPanel.vue'
 import PanelSection from '~/components/panels/PanelSection.vue'
 import {
@@ -17,8 +17,6 @@ const {
   removeFile,
   setActiveFile
 } = useStepImportState()
-
-const shouldEnableFileListScroll = computed(() => state.value.files.length >= 2)
 
 const statusLabelMap = {
   idle: '待处理',
@@ -105,7 +103,6 @@ const onRemoveFile = (fileId: string): void => {
       <div class="file-list-container">
         <div
           class="file-list-scroll"
-          :class="{ 'file-list-scroll--scrollable': shouldEnableFileListScroll }"
         >
           <ul class="file-list">
             <li
@@ -120,9 +117,15 @@ const onRemoveFile = (fileId: string): void => {
                 <span
                   class="file-list__meta"
                   :class="{ 'file-list__meta--error': fileItem.status === 'error' }"
-                  :title="fileItem.errorMessage ?? getStatusLabel(fileItem.status)"
                 >
-                  {{ fileItem.errorMessage ? statusLabelMap.error : getStatusLabel(fileItem.status) }}
+                  {{ getStatusLabel(fileItem.status) }}
+                </span>
+                <span
+                  v-if="fileItem.status === 'error' && fileItem.errorMessage"
+                  class="file-list__error-message"
+                  :title="fileItem.errorMessage"
+                >
+                  {{ fileItem.errorMessage }}
                 </span>
               </div>
 
