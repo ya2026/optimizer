@@ -12,7 +12,7 @@ interface FaceInteractionState {
 export const useFaceInteractionState = () => {
   const state = useState<FaceInteractionState>('face-interaction-state', () => ({
     manualColoringEnabled: true,
-    selectedColorId: 'spectrum-red',
+    selectedColorId: 'palette-coral',
     selectedFace: null,
     separationRequestToken: 0,
     autoColorRequestToken: 0,
